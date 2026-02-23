@@ -15,7 +15,7 @@ export default function App() {
 
   if (!session) return <Login onLogin={onLogin} />
 
-  if (!started) {
+  if (!started && session.role !== 'host') {
     return (
       <GameBriefing
         session={session}

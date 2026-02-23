@@ -53,7 +53,7 @@ export default function PlayerCard({ session, onLogout }) {
   const browserAlertsEnabledRef = useRef(browserAlertsEnabled)
   const toastTimerRef = useRef(null)
   const titleTimerRef = useRef(null)
-  const originalTitleRef = useRef(typeof document !== 'undefined' ? document.title : 'Basement at 6:17')
+  const originalTitleRef = useRef(typeof document !== 'undefined' ? document.title : 'The Sapphire of Shadows')
 
   const authHeaders = useMemo(
     () => ({

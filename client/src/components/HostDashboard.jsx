@@ -7,6 +7,8 @@ const STATE_POLL_MS = 4000
 export default function HostDashboard({ session, onLogout }) {
   const [clues, setClues] = useState([])
   const [revealed, setRevealed] = useState([])
+  const [playerPins, setPlayerPins] = useState([])
+  const [hostPin, setHostPin] = useState(null)
   const [votes, setVotes] = useState([])
   const [results, setResults] = useState(null)
   const [announcements, setAnnouncements] = useState([])
@@ -46,6 +48,12 @@ export default function HostDashboard({ session, onLogout }) {
     setVotes(res.data.votes || [])
   }
 
+  const fetchPins = async () => {
+    const res = await axios.get(`${API_BASE}/api/player-pins`, authHeaders)
+    setHostPin(res.data.hostPin)
+    setPlayerPins(res.data.players || [])
+  }
+
   const fetchGameState = async () => {
     const res = await axios.get(
       `${API_BASE}/api/game-state?sinceAnnouncementId=${latestAnnouncementIdRef.current}`,
@@ -65,7 +73,7 @@ export default function HostDashboard({ session, onLogout }) {
     const loadInitial = async () => {
       setBusy(true)
       await withErrorHandling(async () => {
-        await Promise.all([fetchClues(), fetchVotes(), fetchGameState()])
+        await Promise.all([fetchClues(), fetchVotes(), fetchGameState(), fetchPins()])
       })
       if (active) setBusy(false)
     }
@@ -131,7 +139,7 @@ export default function HostDashboard({ session, onLogout }) {
       setResults(null)
       setAnnouncements([])
       latestAnnouncementIdRef.current = 0
-      await Promise.all([fetchVotes(), fetchGameState(), fetchClues()])
+      await Promise.all([fetchVotes(), fetchGameState(), fetchClues(), fetchPins()])
     })
     setBusy(false)
   }
@@ -158,6 +166,22 @@ export default function HostDashboard({ session, onLogout }) {
       </div>
 
       {error && <div className="error">{error}</div>}
+
+      <section className="panel">
+        <h3>Game Keys</h3>
+        <div className="key-grid">
+          <div className="key-card">
+            <strong>Host Key</strong>
+            <div>{hostPin ?? '...'}</div>
+          </div>
+          {playerPins.map((entry) => (
+            <div key={entry.pin} className="key-card">
+              <strong>{entry.name}</strong>
+              <div>{entry.pin}</div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="host-grid">
         <section className="panel">

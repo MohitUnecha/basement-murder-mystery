@@ -172,6 +172,21 @@ app.get('/api/players', (_req, res) => {
   });
 });
 
+app.get('/api/player-pins', requireSession, requireHost, (_req, res) => {
+  const sorted = players
+    .map((player) => ({
+      name: player.name,
+      title: player.title,
+      pin: player.pin,
+    }))
+    .sort((a, b) => Number(a.pin) - Number(b.pin));
+
+  res.json({
+    hostPin,
+    players: sorted,
+  });
+});
+
 app.post('/api/auth', (req, res) => {
   const pin = parsePin(req.body?.pin);
   if (!pin) return res.status(400).json({ error: 'valid pin required' });

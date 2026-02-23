@@ -30,7 +30,7 @@ export default function Login({ onLogin }) {
     <div className="screen screen-login">
       <div className="hero-card">
         <p className="eyebrow">Game Night Access</p>
-        <h1 className="title">Basement at 6:17</h1>
+        <h1 className="title">THE SAPPHIRE OF SHADOWS</h1>
         <p className="subtitle">Enter your game key to view your private briefing.</p>
 
         <form onSubmit={submit} className="card">
