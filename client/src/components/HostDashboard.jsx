@@ -3,45 +3,99 @@ import axios from 'axios'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000'
 
-export default function HostDashboard() {
+export default function HostDashboard({ session }) {
   const [clues, setClues] = useState([])
   const [revealed, setRevealed] = useState([])
   const [votes, setVotes] = useState([])
   const [results, setResults] = useState(null)
+  const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
 
-  useEffect(() => { fetchClues(); fetchRevealed(); fetchVotes(); }, [])
+  const authHeaders = {
+    headers: { Authorization: `Bearer ${session.token}` },
+  }
+
+  const withErrorHandling = async (fn) => {
+    try {
+      setError(null)
+      await fn()
+    } catch (err) {
+      setError(err.response?.data?.error || err.message)
+    }
+  }
 
   const fetchClues = async () => {
-    const res = await axios.get(`${API_BASE}/api/clues`)
+    const res = await axios.get(`${API_BASE}/api/clues`, authHeaders)
     setClues(res.data)
   }
+
   const fetchRevealed = async () => {
     const res = await axios.get(`${API_BASE}/api/revealed`)
     setRevealed(res.data.revealed)
   }
+
   const fetchVotes = async () => {
-    const res = await axios.get(`${API_BASE}/api/votes`)
+    const res = await axios.get(`${API_BASE}/api/votes`, authHeaders)
     setVotes(res.data.votes)
   }
+
+  useEffect(() => {
+    let active = true
+
+    const loadInitialData = async () => {
+      setBusy(true)
+      await withErrorHandling(async () => {
+        await Promise.all([fetchClues(), fetchRevealed(), fetchVotes()])
+      })
+      if (active) setBusy(false)
+    }
+
+    loadInitialData()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
   const reveal = async (n) => {
-    await axios.post(`${API_BASE}/api/reveal-clue`, { number: n })
-    fetchRevealed()
+    await withErrorHandling(async () => {
+      setBusy(true)
+      await axios.post(`${API_BASE}/api/reveal-clue`, { number: n }, authHeaders)
+      await Promise.all([fetchRevealed(), fetchClues()])
+    })
+    setBusy(false)
   }
+
   const fetchResults = async () => {
-    const res = await axios.get(`${API_BASE}/api/results`)
-    setResults(res.data)
+    await withErrorHandling(async () => {
+      const res = await axios.get(`${API_BASE}/api/results`, authHeaders)
+      setResults(res.data)
+    })
+  }
+
+  const resetGame = async () => {
+    await withErrorHandling(async () => {
+      setBusy(true)
+      await axios.post(`${API_BASE}/api/reset`, {}, authHeaders)
+      setResults(null)
+      await Promise.all([fetchRevealed(), fetchVotes(), fetchClues()])
+    })
+    setBusy(false)
   }
 
   return (
     <div className="container">
       <h2>Host Dashboard</h2>
+      {error && <div className="error">{error}</div>}
       <div className="panel">
         <h3>All Clues</h3>
         <ul>
           {clues.map(c => (
             <li key={c.number}>
-              #{c.number} — hidden: {c.hide}
-              <button onClick={() => reveal(c.number)} style={{marginLeft:8}}>Reveal</button>
+              #{c.number} {c.revealed ? ' (revealed)' : ''} - hidden: {c.hide}
+              <button disabled={busy} onClick={() => reveal(c.number)} style={{ marginLeft: 8 }}>
+                Reveal
+              </button>
             </li>
           ))}
         </ul>
@@ -56,8 +110,9 @@ export default function HostDashboard() {
 
       <div className="panel">
         <h3>Votes</h3>
-        <button onClick={fetchVotes}>Refresh Votes</button>
-        <button onClick={fetchResults} style={{marginLeft:8}}>Tally</button>
+        <button disabled={busy} onClick={() => withErrorHandling(fetchVotes)}>Refresh Votes</button>
+        <button disabled={busy} onClick={fetchResults} style={{ marginLeft: 8 }}>Tally</button>
+        <button disabled={busy} onClick={resetGame} style={{ marginLeft: 8 }}>Reset Round</button>
         <pre>{JSON.stringify(votes, null, 2)}</pre>
         {results && <pre>{JSON.stringify(results, null, 2)}</pre>}
       </div>

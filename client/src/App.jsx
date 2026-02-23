@@ -8,7 +8,7 @@ export default function App() {
 
   if (!session) return <Login onLogin={setSession} />
 
-  if (session.role === 'host') return <HostDashboard />
+  if (session.role === 'host') return <HostDashboard session={session} />
 
   return <PlayerCard player={session.player} />
 }

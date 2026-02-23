@@ -1,50 +1,75 @@
-# Basement at 6:17 — Murder Mystery Web App
+# Basement at 6:17 - Murder Mystery Web App
 
-Local scaffold for the game: React frontend (Vite) and Node/Express backend.
+React frontend (`client/`) + Node/Express backend (`server/`) for running a home murder mystery game.
 
-Quick start
+## Local development
 
-1. Install dependencies for both server and client:
+1. Install dependencies for both apps:
 
 ```bash
 npm run install-all
 ```
 
-2. Start the server:
+2. Start backend:
 
 ```bash
 node server/index.js
 ```
 
-3. Start the client (in a separate terminal):
+3. Start frontend in another terminal:
 
 ```bash
 cd client
 npm run dev
 ```
 
-Notes
-- Server runs on port 4000 by default.
-- Host PIN: `9000`. Player PINs: `1001`–`1022` (match players from your game pack).
-- Host dashboard allows revealing clues and viewing votes. Players log in with their PIN to see their role card.
+Optional (if backend is not local):
 
-Next steps
-- Finish client UX polish and printing templates.
-- Add persistent storage for votes and revealed clues (optional).
-- Add session tokens and secure auth (optional for production).
-# React + Vite
+```bash
+cd client
+cp .env.example .env
+```
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Defaults:
+- Backend URL: `http://localhost:4000`
+- Host PIN: `9000`
+- Player PINs: `1001` to `1022`
 
-Currently, two official plugins are available:
+## Frontend deployment (GitHub Pages)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Workflow file: `.github/workflows/deploy-frontend-gh-pages.yml`
 
-## React Compiler
+It now:
+- Builds `client/`
+- Publishes to `gh-pages`
+- Uses `force_orphan` for clean branch publishing
+- Uses write permissions for `GITHUB_TOKEN`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+After first successful run:
+1. Open repository `Settings -> Pages`
+2. Set source to `Deploy from a branch`
+3. Select `gh-pages` and `/ (root)`
 
-## Expanding the ESLint configuration
+The Vite build now uses a relative base path (`--base ./`) so asset links still work if the repo name changes.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Backend deployment
+
+Deploy `server/` to Render, Railway, Fly.io, or similar Node host.
+
+Recommended env vars:
+- `PORT` (provided by host)
+- `CORS_ORIGINS` (comma-separated origins allowed to call API)
+  - Example: `https://mohitunecha.github.io,http://localhost:5173`
+
+For frontend production API URL, set GitHub repository variable:
+- `VITE_API_BASE` = your deployed backend URL
+
+The GitHub Actions build injects this value automatically.
+
+## Backend behavior (optimized for game night)
+
+- Token-based login for host and players
+- Host-only admin APIs (clues reveal, votes view, tally, reset)
+- One active vote per voter (changing vote replaces prior vote)
+- Detective vote weighting handled once per final vote
+- Round reset endpoint for replaying quickly
