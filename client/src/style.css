@@ -79,6 +79,7 @@ p {
   color: #f2f5f7;
   font-size: clamp(27px, 3.5vw, 40px);
   line-height: 1.05;
+  animation: slide-in 320ms ease;
 }
 
 .subtitle {
@@ -117,6 +118,7 @@ p {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 18px;
+  animation: rise-in 260ms ease;
 }
 
 .briefing p strong {
@@ -156,6 +158,43 @@ p {
   background: #f6f9fb;
   border-radius: 10px;
   padding: 10px;
+}
+
+.player-layout {
+  grid-template-columns: 1.05fr 0.95fr;
+}
+
+.clue-feed {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.clue-feed li {
+  color: #172129;
+  line-height: 1.5;
+}
+
+.role-card {
+  color: #f5f8fa;
+  border: 0;
+}
+
+.role-card p strong {
+  color: #ffe6d8;
+}
+
+.role-detective {
+  background: linear-gradient(145deg, #0e3a56 0%, #10222d 100%);
+}
+
+.role-murderer {
+  background: linear-gradient(145deg, #4f1018 0%, #1e0d13 100%);
+}
+
+.role-civilian {
+  background: linear-gradient(145deg, #333b3f 0%, #1f2629 100%);
 }
 
 .stack {
@@ -241,6 +280,54 @@ select:focus {
   color: var(--ok);
   font-weight: 700;
   margin-top: 10px;
+}
+
+.floating-toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  max-width: 360px;
+  background: #0f181d;
+  color: #e3edf2;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
+  z-index: 20;
+  animation: toast-in 180ms ease;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @media (max-width: 900px) {

@@ -109,8 +109,8 @@ export default function HostDashboard({ session, onLogout }) {
           {clues.map(c => (
             <li key={c.number}>
               <span>#{c.number} {c.revealed ? '(revealed)' : ''} - hidden: {c.hide}</span>
-              <button className="btn btn-primary" disabled={busy} onClick={() => reveal(c.number)}>
-                Reveal
+              <button className="btn btn-primary" disabled={busy || c.revealed} onClick={() => reveal(c.number)}>
+                {c.revealed ? 'Revealed' : 'Reveal'}
               </button>
             </li>
           ))}

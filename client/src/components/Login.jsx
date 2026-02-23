@@ -34,20 +34,20 @@ export default function Login({ onLogin }) {
         <p className="subtitle">Enter your role PIN to view your private briefing.</p>
 
         <form onSubmit={submit} className="card">
-          <label className="label">PIN</label>
+          <label className="label">Game Key</label>
           <input
             className="input"
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             inputMode="numeric"
             autoComplete="one-time-code"
-            placeholder="e.g. 1001"
+            placeholder="Enter your key"
           />
           <button className="btn btn-primary" type="submit" disabled={loading}>
             {loading ? 'Entering...' : 'Enter Briefing'}
           </button>
           {err && <div className="error">{err}</div>}
-          <div className="hint">Host PIN: 9000. Player PINs: 1001–1022.</div>
+          <div className="hint">Use the private key shared by your game host.</div>
         </form>
       </div>
     </div>
