@@ -110,6 +110,14 @@ p {
   gap: 16px;
 }
 
+.briefing-grid,
+.host-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
 .card,
 .panel {
   background: var(--card);
@@ -125,11 +133,6 @@ p {
   color: #111b20;
 }
 
-.addon {
-  margin-top: 16px;
-}
-
-.addon pre,
 .panel pre {
   background: #11181d;
   color: #e5ecf0;
@@ -160,6 +163,11 @@ p {
   padding: 10px;
 }
 
+.panel li > div {
+  display: grid;
+  gap: 5px;
+}
+
 .player-layout {
   grid-template-columns: 1.05fr 0.95fr;
 }
@@ -176,12 +184,25 @@ p {
   line-height: 1.5;
 }
 
+.simple-list,
+.announcement-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.announcement-list li,
+.simple-list li {
+  line-height: 1.5;
+}
+
 .role-card {
   color: #f5f8fa;
   border: 0;
 }
 
-.role-card p strong {
+.role-card strong {
   color: #ffe6d8;
 }
 
@@ -270,6 +291,20 @@ select:focus {
   margin-top: 6px;
 }
 
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #dce8ee;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .error {
   color: var(--danger);
   font-weight: 700;
@@ -331,7 +366,9 @@ select:focus {
 }
 
 @media (max-width: 900px) {
-  .layout-grid {
+  .layout-grid,
+  .briefing-grid,
+  .host-grid {
     grid-template-columns: 1fr;
   }
 

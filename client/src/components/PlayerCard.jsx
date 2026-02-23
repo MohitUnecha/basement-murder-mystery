@@ -2,12 +2,33 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:4000').trim()
-const CLUE_POLL_MS = 4000
+const GAME_STATE_POLL_MS = 3500
 
 function getRoleTitle(type) {
   if (type === 'murderer') return 'Murderer Briefing'
   if (type === 'detective') return 'Detective Briefing'
-  return 'Civilian Briefing'
+  return 'Player Briefing'
+}
+
+function buildRoleDescription(type, addon) {
+  if (type === 'detective' && addon) {
+    return [
+      `Power: ${addon.power}`,
+      `Mission: ${addon.mission}`,
+      `Suspicion Seed: ${addon.seed}`,
+      `Strategy: ${addon.strategy}`,
+    ]
+  }
+  if (type === 'murderer' && addon) {
+    return [
+      `Truth: ${addon.whatReallyHappened}`,
+      `Public Story: ${addon.publicApproach}`,
+      `Known Cracks: ${addon.cracks}`,
+      `Misdirection: ${addon.deflect}`,
+      `Emotional Cover: ${addon.emotionalCover}`,
+    ]
+  }
+  return ['Investigate hard, test alibis, and track contradictions.']
 }
 
 export default function PlayerCard({ session, onLogout }) {
@@ -18,18 +39,21 @@ export default function PlayerCard({ session, onLogout }) {
   const [suspects, setSuspects] = useState([])
   const [suspectName, setSuspectName] = useState('')
   const [revealedClues, setRevealedClues] = useState([])
+  const [announcements, setAnnouncements] = useState([])
+  const [meetingLabel, setMeetingLabel] = useState('Pregame')
   const [voteMessage, setVoteMessage] = useState(null)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [alertsEnabled, setAlertsEnabled] = useState(
+  const [toast, setToast] = useState(null)
+  const [browserAlertsEnabled, setBrowserAlertsEnabled] = useState(
     typeof Notification !== 'undefined' && Notification.permission === 'granted',
   )
-  const [toast, setToast] = useState(null)
 
-  const seenClueNumbersRef = useRef(new Set())
-  const cluesLoadedRef = useRef(false)
+  const latestAnnouncementIdRef = useRef(0)
+  const browserAlertsEnabledRef = useRef(browserAlertsEnabled)
   const toastTimerRef = useRef(null)
-  const alertsEnabledRef = useRef(alertsEnabled)
+  const titleTimerRef = useRef(null)
+  const originalTitleRef = useRef(typeof document !== 'undefined' ? document.title : 'Basement at 6:17')
 
   const authHeaders = useMemo(
     () => ({
@@ -44,89 +68,102 @@ export default function PlayerCard({ session, onLogout }) {
     toastTimerRef.current = setTimeout(() => setToast(null), 5000)
   }
 
-  const maybeNotifyBrowser = (text, tag) => {
-    if (!alertsEnabledRef.current || typeof Notification === 'undefined') return
+  const flashTitle = (text) => {
+    if (typeof document === 'undefined') return
+    if (!document.hidden) return
+
+    if (titleTimerRef.current) clearInterval(titleTimerRef.current)
+    let on = false
+    let ticks = 0
+    titleTimerRef.current = setInterval(() => {
+      on = !on
+      document.title = on ? text : originalTitleRef.current
+      ticks += 1
+      if (ticks > 8 && titleTimerRef.current) {
+        clearInterval(titleTimerRef.current)
+        titleTimerRef.current = null
+        document.title = originalTitleRef.current
+      }
+    }, 550)
+  }
+
+  const tryBrowserNotification = (text, tag) => {
+    if (!browserAlertsEnabledRef.current || typeof Notification === 'undefined') return
     if (Notification.permission !== 'granted') return
-    new Notification('Basement at 6:17', { body: text, tag })
+    new Notification('Sapphire of Shadows', { body: text, tag })
   }
 
-  const broadcastUpdate = (text, tag) => {
+  const notify = (text, tag) => {
     showToast(text)
-    maybeNotifyBrowser(text, tag)
+    flashTitle('New Game Update')
+    tryBrowserNotification(text, tag)
   }
 
-  const enableAlerts = async () => {
+  const enableBrowserAlerts = async () => {
     if (typeof Notification === 'undefined') {
-      showToast('Browser notifications are not supported on this device.')
+      showToast('Device notifications are not supported in this browser.')
       return
     }
 
     if (Notification.permission === 'granted') {
-      setAlertsEnabled(true)
-      showToast('Alerts are already enabled.')
+      setBrowserAlertsEnabled(true)
+      notify('Device notifications are already enabled.', 'alerts-enabled')
       return
     }
 
     if (Notification.permission === 'denied') {
-      showToast('Notifications are blocked in this browser. Enable them in site settings.')
+      notify('Notifications are blocked. Enable them in browser site settings.', 'alerts-blocked')
       return
     }
 
     const permission = await Notification.requestPermission()
     const enabled = permission === 'granted'
-    setAlertsEnabled(enabled)
-    showToast(enabled ? 'Clue alerts enabled.' : 'Clue alerts were not enabled.')
+    setBrowserAlertsEnabled(enabled)
+    notify(enabled ? 'Device notifications enabled.' : 'Device notifications not enabled.', 'alerts-result')
   }
 
-  const fetchRevealedClues = async (announceChanges = true) => {
-    const res = await axios.get(`${API_BASE}/api/revealed`)
-    const next = (res.data.revealed || []).slice().sort((a, b) => a.number - b.number)
-    const nextSet = new Set(next.map((clue) => clue.number))
+  const testAlert = () => {
+    notify('Test alert: your notifications are active for game updates.', 'test-alert')
+  }
 
-    if (announceChanges && cluesLoadedRef.current) {
-      const previousSet = seenClueNumbersRef.current
-      if (nextSet.size < previousSet.size) {
-        broadcastUpdate('Round reset: all clues were hidden again.', 'round-reset')
-      } else {
-        const newClues = next.filter((clue) => !previousSet.has(clue.number))
-        newClues.forEach((clue) => {
-          broadcastUpdate(`New clue #${clue.number}: ${clue.text}`, `clue-${clue.number}`)
-        })
-      }
+  const pollGameState = async () => {
+    const res = await axios.get(
+      `${API_BASE}/api/game-state?sinceAnnouncementId=${latestAnnouncementIdRef.current}`,
+      authHeaders,
+    )
+    const data = res.data
+    setRevealedClues(data.revealed || [])
+    setMeetingLabel(data.phaseLabel || 'Pregame')
+    latestAnnouncementIdRef.current = data.latestAnnouncementId || latestAnnouncementIdRef.current
+
+    if (data.announcements?.length) {
+      setAnnouncements((prev) => [...data.announcements, ...prev].slice(0, 18))
+      data.announcements.forEach((item) => notify(item.message, `announcement-${item.id}`))
     }
-
-    seenClueNumbersRef.current = nextSet
-    cluesLoadedRef.current = true
-    setRevealedClues(next)
   }
 
   useEffect(() => {
-    alertsEnabledRef.current = alertsEnabled
-  }, [alertsEnabled])
+    browserAlertsEnabledRef.current = browserAlertsEnabled
+  }, [browserAlertsEnabled])
 
   useEffect(() => {
     let active = true
 
     const loadPlayers = async () => {
-      try {
-        const res = await axios.get(`${API_BASE}/api/players`)
-        const names = (res.data.players || [])
-          .map((entry) => entry.name)
-          .filter((name) => name && name !== player.name)
-          .sort((a, b) => a.localeCompare(b))
-
-        if (active) {
-          setSuspects(names)
-          setSuspectName((current) => current || names[0] || '')
-        }
-      } catch (err) {
-        if (active) setError(err.response?.data?.error || err.message)
+      const res = await axios.get(`${API_BASE}/api/players`)
+      const names = (res.data.players || [])
+        .map((entry) => entry.name)
+        .filter((name) => name && name !== player.name)
+        .sort((a, b) => a.localeCompare(b))
+      if (active) {
+        setSuspects(names)
+        setSuspectName((current) => current || names[0] || '')
       }
     }
 
     const loadInitial = async () => {
       try {
-        await Promise.all([loadPlayers(), fetchRevealedClues(false)])
+        await Promise.all([loadPlayers(), pollGameState()])
       } catch (err) {
         if (active) setError(err.response?.data?.error || err.message)
       }
@@ -137,16 +174,18 @@ export default function PlayerCard({ session, onLogout }) {
     const intervalId = setInterval(async () => {
       if (!active) return
       try {
-        await fetchRevealedClues(true)
+        await pollGameState()
       } catch (_err) {
         // Ignore transient polling errors.
       }
-    }, CLUE_POLL_MS)
+    }, GAME_STATE_POLL_MS)
 
     return () => {
       active = false
       clearInterval(intervalId)
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+      if (titleTimerRef.current) clearInterval(titleTimerRef.current)
+      if (typeof document !== 'undefined') document.title = originalTitleRef.current
     }
   }, [player.name])
 
@@ -159,7 +198,7 @@ export default function PlayerCard({ session, onLogout }) {
       setError(null)
       setVoteMessage(null)
       await axios.post(`${API_BASE}/api/vote`, { suspectName }, authHeaders)
-      setVoteMessage(`Vote submitted for ${suspectName}. You can change it before tally.`)
+      setVoteMessage(`Vote submitted for ${suspectName}. You can still update it before final tally.`)
     } catch (err) {
       setError(err.response?.data?.error || err.message)
     } finally {
@@ -181,57 +220,61 @@ export default function PlayerCard({ session, onLogout }) {
     <div className="screen">
       <div className="topbar">
         <div>
-          <div className="eyebrow">Player Briefing</div>
+          <div className="eyebrow">Investigation Live</div>
           <h2 className="title-sm">{player.name} - {player.title}</h2>
+          <p className="status-pill">{meetingLabel}</p>
         </div>
         <button className="btn btn-ghost" onClick={logout}>Log Out</button>
       </div>
 
       <div className="layout-grid player-layout">
         <section className="card briefing">
-          <h3>Case Notes</h3>
-          <p><strong>Relationship:</strong> {player.relationship}</p>
-          <p><strong>Personality:</strong> {player.personality}</p>
-          <p><strong>What happened today:</strong> {player.whatHappened}</p>
-          <p><strong>6:17 Alibi:</strong> {player.alibi} - Confirm: {player.confirm || 'None'}</p>
+          <h3>Your Card</h3>
+          <p><strong>Who You Are:</strong> {player.whoYouAre}</p>
+          <p><strong>Tonight:</strong> {player.tonight}</p>
+          <p><strong>8:47 Alibi:</strong> {player.alibi}</p>
+          <p><strong>Must Talk To:</strong> {player.mustTalkTo?.join(', ')}</p>
           <p><strong>Secret:</strong> {player.secret}</p>
-          <p><strong>Finger-point hook:</strong> {player.fingerPointHook}</p>
-          <p><strong>Witness memory:</strong> {player.witnessMemory}</p>
+          <p><strong>Suspicion Hook:</strong> {player.suspicionHook}</p>
+          <p><strong>Witness Memory:</strong> {player.witnessMemory}</p>
         </section>
 
         <div className="stack">
           <section className={`card role-card role-${roleType}`}>
             <h3>{getRoleTitle(roleType)}</h3>
-            {roleType === 'detective' && addon && (
-              <>
-                <p><strong>Power:</strong> {addon.power}</p>
-                <p><strong>Secret lead:</strong> {addon.seed}</p>
-                <p><strong>Mission:</strong> {addon.mission}</p>
-              </>
-            )}
-            {roleType === 'murderer' && addon && (
-              <>
-                <p><strong>What really happened:</strong> {addon.whatReallyHappened}</p>
-                <p><strong>Public approach:</strong> {addon.publicApproach}</p>
-                <p><strong>Deflect to:</strong> {addon.deflect}</p>
-                <p><strong>Avoid discussing:</strong> {addon.avoid}</p>
-              </>
-            )}
-            {roleType === 'civilian' && (
-              <p>Trust your memory, challenge inconsistencies, and vote carefully.</p>
-            )}
+            <ul className="simple-list">
+              {buildRoleDescription(roleType, addon).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
           </section>
 
           <section className="card">
             <h3>Live Clue Feed</h3>
-            <p className="hint">When host reveals clues, all players see them here automatically.</p>
+            <p className="hint">All revealed clues appear here in real time.</p>
             {revealedClues.length === 0 ? (
               <p className="hint">No clues revealed yet.</p>
             ) : (
               <ul className="clue-feed">
                 {revealedClues.map((clue) => (
                   <li key={clue.number}>
-                    <strong>Clue #{clue.number}:</strong> {clue.text}
+                    <strong>Pack {clue.pack} - Clue #{clue.number}:</strong> {clue.title}
+                    <div>{clue.text}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="card">
+            <h3>Host Announcements</h3>
+            {announcements.length === 0 ? (
+              <p className="hint">No announcements yet.</p>
+            ) : (
+              <ul className="announcement-list">
+                {announcements.map((item) => (
+                  <li key={item.id}>
+                    <strong>{item.type.toUpperCase()}:</strong> {item.message}
                   </li>
                 ))}
               </ul>
@@ -240,7 +283,6 @@ export default function PlayerCard({ session, onLogout }) {
 
           <section className="card">
             <h3>Final Vote</h3>
-            <p className="hint">Choose your suspect. Submitting again updates your vote.</p>
             <form onSubmit={submitVote} className="stack">
               <label className="label">Suspect</label>
               <select
@@ -257,8 +299,11 @@ export default function PlayerCard({ session, onLogout }) {
                 <button className="btn btn-primary" disabled={!suspectName || busy}>
                   {busy ? 'Submitting...' : 'Submit Vote'}
                 </button>
-                <button className="btn btn-ghost" type="button" onClick={enableAlerts}>
-                  {alertsEnabled ? 'Alerts Enabled' : 'Enable Alerts'}
+                <button className="btn btn-ghost" type="button" onClick={enableBrowserAlerts}>
+                  {browserAlertsEnabled ? 'Device Alerts On' : 'Enable Device Alerts'}
+                </button>
+                <button className="btn btn-ghost" type="button" onClick={testAlert}>
+                  Test Alert
                 </button>
               </div>
             </form>

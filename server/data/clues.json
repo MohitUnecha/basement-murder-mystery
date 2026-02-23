@@ -1,12 +1,62 @@
 [
-  {"number":1,"hide":"under coffee table edge","text":"A photo of Ayaan’s watch stopped at 6:17 PM."},
-  {"number":2,"hide":"taped under stair railing","text":"Screenshot text: 'Meet me by storage at 6:10. Come alone.'"},
-  {"number":3,"hide":"behind framed picture/poster","text":"Sketch: 'Storage corner = blind spot / no visibility.'"},
-  {"number":4,"hide":"under couch cushion","text":"Voice-note transcript: 'If you don't fix this tonight, I'm telling everyone.'"},
-  {"number":5,"hide":"on top of doorframe near basement entrance","text":"A snapped keychain charm: a small silver BEAR."},
-  {"number":6,"hide":"inside a board game box","text":"Receipt: nitrile gloves + duct tape bought today at 4:52 PM."},
-  {"number":7,"hide":"taped under stack of cups/plates","text":"Note: 'I heard someone say, \"Don't make me do this,\" near storage.'"},
-  {"number":8,"hide":"folded inside napkin near snacks","text":"Ayaan's crumpled list: circled 3 names + 'THEY'RE LYING.'"},
-  {"number":9,"hide":"inside soda/sparkling cider case","text":"Unsent apology: 'I'm sorry. I didn't mean for it to go this far.'"},
-  {"number":10,"hide":"in prop hoodie pocket in coat pile","text":"Last word heard: '...bear...'"}
+  {
+    "number": 1,
+    "pack": "A",
+    "title": "The Warning Note",
+    "text": "A torn piece of paper found folded up, handwritten in urgent script: 'Someone at this gala is not who they say they are. The Sapphire is in danger. I tried to warn Dr. Mehta but she wouldn't listen. If you find this, look for the person who doesn't belong.' The handwriting is unidentified. The paper is slightly damp as if it was held by nervous hands."
+  },
+  {
+    "number": 2,
+    "pack": "A",
+    "title": "The Replica Gemstone   (possible red herring)",
+    "text": "A small blue gemstone in a velvet pouch, with a tiny handwritten tag attached: 'REPLICA -- display model only. The real Sapphire of Shadows has a faint silver vein running through its center. This one does not.' The pouch is the kind used to transport jewelry. Whoever had this replica knew the real gem well enough to obtain a convincing substitute -- suggesting advance planning."
+  },
+  {
+    "number": 3,
+    "pack": "A",
+    "title": "The Fabric Scrap",
+    "text": "A small piece of dark fabric, roughly 2 inches, with frayed edges -- as if torn during a struggle or caught on something sharp. Found on the floor near the display alcove entrance. The fabric appears to be from a formal garment -- a blazer lining or dress panel. It is not from Dr. Mehta's clothing. Someone else was in that alcove."
+  },
+  {
+    "number": 4,
+    "pack": "A",
+    "title": "The Guest List Anomaly",
+    "text": "An official-looking printed gala guest list. Most entries have a verified plus-one or institutional affiliation. One entry stands out: 'Sana -- Independent collector. No institutional affiliation. Registered under a guest invitation six months ago.' Six months ago was shortly after the Sapphire's discovery was first reported in a niche collector's newsletter. Nobody else registered that early."
+  },
+  {
+    "number": 5,
+    "pack": "B",
+    "title": "The Blurry Photo   (possible red herring)",
+    "text": "A blurry photo printed on paper -- taken from a security camera screenshot. It shows a figure moving near the display alcove at approximately 8:40 PM, roughly seven minutes before the Sapphire went missing. The figure's face is not clearly visible but they appear to be wearing a dark formal outfit and carrying something close to their body. The timestamp reads 20:40:17."
+  },
+  {
+    "number": 6,
+    "pack": "B",
+    "title": "The Disabled Display Case",
+    "text": "A small technical note written in a precise hand, found near the display alcove: 'The locking mechanism on the Sapphire display case was not forced open -- it was bypassed electronically. This requires either a manufacturer override code or a custom bypass device. This is not something you improvise on the night. Whoever did this came prepared weeks in advance.' This rules out an opportunistic theft. This was planned."
+  },
+  {
+    "number": 7,
+    "pack": "B",
+    "title": "The Encrypted USB Drive",
+    "text": "A USB drive taped under a surface near the display area with a label in neat handwriting: 'Sapphire scan data -- dimensions, weight, spectral signature, unique identifiers. This file was accessed 3 weeks before the gala.' Whoever accessed this file knew exactly what the Sapphire looked like, how much it weighed, and how to identify it -- before ever seeing it in person. This was research for a heist."
+  },
+  {
+    "number": 8,
+    "pack": "B",
+    "title": "The Collector's Contact Card",
+    "text": "A small printed business card found tucked inside a book or dropped near the display area: 'V. Orlov -- Private Acquisitions. Specializing in rare stones and artifacts. Discreet. International.' On the back, handwritten: 'Confirm when item is secured. Transfer on delivery.' This is a communication between the thief and their buyer. The deal was already arranged before tonight."
+  },
+  {
+    "number": 9,
+    "pack": "C",
+    "title": "The Hidden Compartment Bag",
+    "text": "A small designer clutch bag found tucked behind other items near the storage area. It appears normal from the outside. However, the bottom panel slides open to reveal a hidden compartment -- currently empty, but lined with soft velvet exactly the size of the Sapphire. The bag belongs to someone at this gala. Inside the main compartment: a lip gloss, a folded receipt for a gemstone transport case purchased two weeks ago, and a boarding pass stub to Vienna dated for tomorrow morning."
+  },
+  {
+    "number": 10,
+    "pack": "C",
+    "title": "The Clear Security Photo",
+    "text": "A second security camera image, this one clear. Time-stamped 20:41:03 -- just 46 seconds after the blurry photo. The figure has turned and their face is partially visible. The image is printed and labeled: 'Enhanced still from gala security camera. Subject identified near display alcove at 20:41. Subject is carrying an item consistent with the size of the Sapphire case.' Anyone who sees this image and knows the people at this gala will be able to make an identification."
+  }
 ]

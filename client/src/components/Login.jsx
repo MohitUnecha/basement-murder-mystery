@@ -31,7 +31,7 @@ export default function Login({ onLogin }) {
       <div className="hero-card">
         <p className="eyebrow">Game Night Access</p>
         <h1 className="title">Basement at 6:17</h1>
-        <p className="subtitle">Enter your role PIN to view your private briefing.</p>
+        <p className="subtitle">Enter your game key to view your private briefing.</p>
 
         <form onSubmit={submit} className="card">
           <label className="label">Game Key</label>

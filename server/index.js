@@ -16,6 +16,7 @@ app.use(express.json({ limit: '32kb' }));
 const DATA_DIR = path.join(__dirname, 'data');
 const playersData = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'players.json'), 'utf8'));
 const clues = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'clues.json'), 'utf8'));
+const briefing = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'briefing.json'), 'utf8'));
 
 const hostPin = Number(playersData.hostPin);
 const players = playersData.players;
@@ -32,6 +33,10 @@ const state = {
   revealedClues: new Set(),
   votesByVoter: new Map(),
   sessions: new Map(),
+  announcements: [],
+  nextAnnouncementId: 1,
+  meeting: 0,
+  phaseLabel: 'Pregame',
 };
 
 function createToken() {
@@ -53,6 +58,10 @@ function normalizeName(value) {
 function sanitizePlayer(player) {
   const { pin, privateAddon, ...clean } = player;
   return clean;
+}
+
+function nowIso() {
+  return new Date().toISOString();
 }
 
 function getTokenFromHeader(req) {
@@ -82,6 +91,37 @@ function requireHost(req, res, next) {
 
 function votesAsArray() {
   return Array.from(state.votesByVoter.values()).sort((a, b) => a.time - b.time);
+}
+
+function revealedCluesAsArray() {
+  return clues
+    .filter((clue) => state.revealedClues.has(clue.number))
+    .sort((a, b) => a.number - b.number);
+}
+
+function postAnnouncement(type, message, meta = {}) {
+  const announcement = {
+    id: state.nextAnnouncementId++,
+    type,
+    message,
+    createdAt: nowIso(),
+    ...meta,
+  };
+  state.announcements.push(announcement);
+  if (state.announcements.length > 200) {
+    state.announcements = state.announcements.slice(-200);
+  }
+  return announcement;
+}
+
+function currentStatePayload(sinceAnnouncementId = 0) {
+  return {
+    meeting: state.meeting,
+    phaseLabel: state.phaseLabel,
+    latestAnnouncementId: state.nextAnnouncementId - 1,
+    announcements: state.announcements.filter((item) => item.id > sinceAnnouncementId),
+    revealed: revealedCluesAsArray(),
+  };
 }
 
 function computeResults() {
@@ -114,7 +154,12 @@ app.get('/api/health', (_req, res) => {
     clues: clues.length,
     revealedCount: state.revealedClues.size,
     voteCount: state.votesByVoter.size,
+    meeting: state.meeting,
   });
+});
+
+app.get('/api/game-briefing', (_req, res) => {
+  res.json(briefing);
 });
 
 app.get('/api/players', (_req, res) => {
@@ -170,8 +215,16 @@ app.get('/api/clues', requireSession, requireHost, (_req, res) => {
 });
 
 app.get('/api/revealed', (_req, res) => {
-  const revealed = clues.filter((clue) => state.revealedClues.has(clue.number));
-  res.json({ revealed });
+  res.json({
+    revealed: revealedCluesAsArray(),
+    meeting: state.meeting,
+    phaseLabel: state.phaseLabel,
+  });
+});
+
+app.get('/api/game-state', requireSession, (req, res) => {
+  const sinceAnnouncementId = Number(req.query.sinceAnnouncementId) || 0;
+  res.json(currentStatePayload(sinceAnnouncementId));
 });
 
 app.post('/api/reveal-clue', requireSession, requireHost, (req, res) => {
@@ -183,9 +236,44 @@ app.post('/api/reveal-clue', requireSession, requireHost, (req, res) => {
   const clue = clues.find((entry) => entry.number === number);
   if (!clue) return res.status(404).json({ error: 'clue not found' });
 
+  const wasAlreadyRevealed = state.revealedClues.has(clue.number);
   state.revealedClues.add(clue.number);
-  const revealed = clues.filter((entry) => state.revealedClues.has(entry.number));
-  return res.json({ revealed });
+  if (!wasAlreadyRevealed) {
+    postAnnouncement('clue', `New clue revealed: Pack ${clue.pack} - ${clue.title}`, {
+      clueNumber: clue.number,
+      cluePack: clue.pack,
+    });
+  }
+
+  return res.json({ revealed: revealedCluesAsArray() });
+});
+
+app.post('/api/meeting', requireSession, requireHost, (req, res) => {
+  const meeting = Number(req.body?.meeting);
+  if (![1, 2, 3].includes(meeting)) {
+    return res.status(400).json({ error: 'meeting must be 1, 2, or 3' });
+  }
+
+  state.meeting = meeting;
+  state.phaseLabel = `Meeting ${meeting}`;
+
+  const messageByMeeting = {
+    1: 'Meeting 1 has started. Review Pack A clues and open discussion.',
+    2: 'Meeting 2 has started. Review Pack B clues and challenge timelines.',
+    3: 'Final Meeting has started. Review Pack C clues and submit final accusations.',
+  };
+
+  const announcement = postAnnouncement('meeting', messageByMeeting[meeting], { meeting });
+  return res.json({ ok: true, meeting: state.meeting, announcement });
+});
+
+app.post('/api/announce', requireSession, requireHost, (req, res) => {
+  const message = normalizeName(req.body?.message);
+  if (!message) return res.status(400).json({ error: 'message required' });
+  if (message.length > 220) return res.status(400).json({ error: 'message too long (max 220 chars)' });
+
+  const announcement = postAnnouncement('host', message);
+  return res.json({ ok: true, announcement });
 });
 
 app.post('/api/vote', requireSession, (req, res) => {
@@ -226,6 +314,11 @@ app.get('/api/results', requireSession, requireHost, (_req, res) => {
 app.post('/api/reset', requireSession, requireHost, (_req, res) => {
   state.revealedClues.clear();
   state.votesByVoter.clear();
+  state.meeting = 0;
+  state.phaseLabel = 'Pregame';
+  state.announcements = [];
+  state.nextAnnouncementId = 1;
+  postAnnouncement('system', 'Round reset. Brief everyone and start when ready.');
   res.json({ ok: true, message: 'game state reset' });
 });
 

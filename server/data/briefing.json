@@ -1,0 +1,79 @@
+{
+  "title": "The Sapphire of Shadows",
+  "subtitle": "A Murder Mystery for 22 Players",
+  "crime": "The Sapphire of Shadows is stolen. Dr. Priya Mehta is found unconscious.",
+  "story": [
+    "Tonight was supposed to be the most glamorous night of the year. The Ravenswood Gala was organized to unveil a priceless artifact: the Sapphire of Shadows, a rare gemstone discovered by Dr. Priya Mehta after three years of fieldwork in Eastern Europe.",
+    "Some call the Sapphire cursed. Others call it the most valuable privately held artifact in the world. Either way, everyone wanted to see it.",
+    "At exactly 8:47 PM, the lights in the display alcove flickered. Moments later, Dr. Mehta was found unconscious in the back storage room. The Sapphire was gone. The doors were locked from the inside.",
+    "Everyone here has a reason to be at this gala. At least one person came with a plan."
+  ],
+  "readAloud": [
+    "Welcome to the Ravenswood Gala. Tonight we celebrate the unveiling of a priceless artifact: the Sapphire of Shadows. But disaster has struck. The gemstone has been stolen and Dr. Priya Mehta, its discoverer, has been found unconscious. The police are on their way. Nobody leaves. Someone in this room did this. And you are going to figure out who.",
+    "Everyone here has some connection to the gala, to Dr. Mehta, or to the Sapphire itself. Your character card tells you exactly who you are tonight. Your job is to investigate, interrogate, and solve this before the culprit covers their tracks completely."
+  ],
+  "rules": [
+    {
+      "id": 1,
+      "title": "Play Your Character",
+      "text": "Everyone plays a version of themselves with a specific connection to the gala. Your card tells you who you are, what you know, and where you were at 8:47 PM."
+    },
+    {
+      "id": 2,
+      "title": "You May Lie",
+      "text": "You can lie about your alibi, motives, and secrets, except for facts on your card that are cross-confirmed by another player's card."
+    },
+    {
+      "id": 3,
+      "title": "Talk To Three Specific People",
+      "text": "Your card names 3 people you must have a real conversation with during the game."
+    },
+    {
+      "id": 4,
+      "title": "Clues Drive the Case",
+      "text": "Clues are revealed by the hosts at meetings. If a clue never enters play, that lead is lost."
+    },
+    {
+      "id": 5,
+      "title": "Three Meetings",
+      "text": "The hosts run three meetings. Each one unlocks the next clue pack and pushes the case forward."
+    },
+    {
+      "id": 6,
+      "title": "Final Written Accusation",
+      "text": "At the end, submit who stole the Sapphire, why, and what evidence proves it."
+    }
+  ],
+  "timeline": [
+    {
+      "phase": "Phase 1",
+      "time": "0:00 to 0:35",
+      "details": "Read cards, start interrogations, gather early evidence."
+    },
+    {
+      "phase": "Meeting 1",
+      "time": "~0:35",
+      "details": "Hosts reveal found Pack A clues."
+    },
+    {
+      "phase": "Phase 2",
+      "time": "0:35 to 1:10",
+      "details": "Re-interrogate with new leads and contradictions."
+    },
+    {
+      "phase": "Meeting 2",
+      "time": "~1:10",
+      "details": "Hosts reveal found Pack B clues."
+    },
+    {
+      "phase": "Phase 3",
+      "time": "1:10 to 1:40",
+      "details": "Final pressure, final search, final theory building."
+    },
+    {
+      "phase": "Final Meeting",
+      "time": "~1:40",
+      "details": "Hosts reveal found Pack C clues and collect final accusations."
+    }
+  ]
+}

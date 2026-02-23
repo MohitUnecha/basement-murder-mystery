@@ -1,19 +1,27 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:4000').trim()
+const STATE_POLL_MS = 4000
 
 export default function HostDashboard({ session, onLogout }) {
   const [clues, setClues] = useState([])
   const [revealed, setRevealed] = useState([])
   const [votes, setVotes] = useState([])
   const [results, setResults] = useState(null)
+  const [announcements, setAnnouncements] = useState([])
+  const [phaseLabel, setPhaseLabel] = useState('Pregame')
+  const [customMessage, setCustomMessage] = useState('')
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
+  const latestAnnouncementIdRef = useRef(0)
 
-  const authHeaders = {
-    headers: { Authorization: `Bearer ${session.token}` },
-  }
+  const authHeaders = useMemo(
+    () => ({
+      headers: { Authorization: `Bearer ${session.token}` },
+    }),
+    [session.token],
+  )
 
   const withErrorHandling = async (fn) => {
     try {
@@ -26,42 +34,85 @@ export default function HostDashboard({ session, onLogout }) {
 
   const fetchClues = async () => {
     const res = await axios.get(`${API_BASE}/api/clues`, authHeaders)
-    setClues(res.data)
-  }
-
-  const fetchRevealed = async () => {
-    const res = await axios.get(`${API_BASE}/api/revealed`)
-    setRevealed(res.data.revealed)
+    const sorted = (res.data || []).slice().sort((a, b) => {
+      if (a.pack !== b.pack) return a.pack.localeCompare(b.pack)
+      return a.number - b.number
+    })
+    setClues(sorted)
   }
 
   const fetchVotes = async () => {
     const res = await axios.get(`${API_BASE}/api/votes`, authHeaders)
-    setVotes(res.data.votes)
+    setVotes(res.data.votes || [])
+  }
+
+  const fetchGameState = async () => {
+    const res = await axios.get(
+      `${API_BASE}/api/game-state?sinceAnnouncementId=${latestAnnouncementIdRef.current}`,
+      authHeaders,
+    )
+    const data = res.data
+    setRevealed(data.revealed || [])
+    setPhaseLabel(data.phaseLabel || 'Pregame')
+    latestAnnouncementIdRef.current = data.latestAnnouncementId || latestAnnouncementIdRef.current
+    if (data.announcements?.length) {
+      setAnnouncements((prev) => [...data.announcements, ...prev].slice(0, 25))
+    }
   }
 
   useEffect(() => {
     let active = true
-
-    const loadInitialData = async () => {
+    const loadInitial = async () => {
       setBusy(true)
       await withErrorHandling(async () => {
-        await Promise.all([fetchClues(), fetchRevealed(), fetchVotes()])
+        await Promise.all([fetchClues(), fetchVotes(), fetchGameState()])
       })
       if (active) setBusy(false)
     }
+    loadInitial()
 
-    loadInitialData()
+    const timer = setInterval(async () => {
+      if (!active) return
+      try {
+        await fetchGameState()
+      } catch (_err) {
+        // Ignore transient polling errors.
+      }
+    }, STATE_POLL_MS)
 
     return () => {
       active = false
+      clearInterval(timer)
     }
   }, [])
 
-  const reveal = async (n) => {
+  const reveal = async (number) => {
     await withErrorHandling(async () => {
       setBusy(true)
-      await axios.post(`${API_BASE}/api/reveal-clue`, { number: n }, authHeaders)
-      await Promise.all([fetchRevealed(), fetchClues()])
+      await axios.post(`${API_BASE}/api/reveal-clue`, { number }, authHeaders)
+      await Promise.all([fetchClues(), fetchGameState()])
+    })
+    setBusy(false)
+  }
+
+  const setMeeting = async (meeting) => {
+    await withErrorHandling(async () => {
+      setBusy(true)
+      await axios.post(`${API_BASE}/api/meeting`, { meeting }, authHeaders)
+      await fetchGameState()
+    })
+    setBusy(false)
+  }
+
+  const sendAnnouncement = async (event) => {
+    event.preventDefault()
+    await withErrorHandling(async () => {
+      const message = customMessage.trim()
+      if (!message) return
+      setBusy(true)
+      await axios.post(`${API_BASE}/api/announce`, { message }, authHeaders)
+      setCustomMessage('')
+      await fetchGameState()
     })
     setBusy(false)
   }
@@ -78,7 +129,9 @@ export default function HostDashboard({ session, onLogout }) {
       setBusy(true)
       await axios.post(`${API_BASE}/api/reset`, {}, authHeaders)
       setResults(null)
-      await Promise.all([fetchRevealed(), fetchVotes(), fetchClues()])
+      setAnnouncements([])
+      latestAnnouncementIdRef.current = 0
+      await Promise.all([fetchVotes(), fetchGameState(), fetchClues()])
     })
     setBusy(false)
   }
@@ -97,35 +150,89 @@ export default function HostDashboard({ session, onLogout }) {
     <div className="screen">
       <div className="topbar">
         <div>
-          <div className="eyebrow">Host Controls</div>
-          <h2 className="title-sm">Game Master Dashboard</h2>
+          <div className="eyebrow">Host Console</div>
+          <h2 className="title-sm">Ravenswood Gala Control Room</h2>
+          <p className="status-pill">{phaseLabel}</p>
         </div>
         <button className="btn btn-ghost" onClick={logout}>Log Out</button>
       </div>
+
       {error && <div className="error">{error}</div>}
-      <div className="panel">
-        <h3>All Clues</h3>
+
+      <div className="host-grid">
+        <section className="panel">
+          <h3>Meeting Controls</h3>
+          <div className="stack-inline">
+            <button className="btn btn-primary" disabled={busy} onClick={() => setMeeting(1)}>Meeting 1</button>
+            <button className="btn btn-primary" disabled={busy} onClick={() => setMeeting(2)}>Meeting 2</button>
+            <button className="btn btn-primary" disabled={busy} onClick={() => setMeeting(3)}>Meeting 3 / Final</button>
+          </div>
+          <form className="stack" onSubmit={sendAnnouncement}>
+            <label className="label">Custom Announcement</label>
+            <input
+              className="input"
+              value={customMessage}
+              onChange={(event) => setCustomMessage(event.target.value)}
+              placeholder="Example: Meeting 2 starts in 2 minutes."
+              maxLength={220}
+            />
+            <button className="btn btn-ghost" disabled={busy || !customMessage.trim()}>
+              Broadcast Message
+            </button>
+          </form>
+        </section>
+
+        <section className="panel">
+          <h3>Announcements Sent</h3>
+          {announcements.length === 0 ? (
+            <p className="hint">No announcements yet.</p>
+          ) : (
+            <ul className="announcement-list">
+              {announcements.map((item) => (
+                <li key={item.id}>
+                  <strong>{item.type.toUpperCase()}:</strong> {item.message}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      <section className="panel">
+        <h3>Clue Packs</h3>
         <ul>
-          {clues.map(c => (
-            <li key={c.number}>
-              <span>#{c.number} {c.revealed ? '(revealed)' : ''} - hidden: {c.hide}</span>
-              <button className="btn btn-primary" disabled={busy || c.revealed} onClick={() => reveal(c.number)}>
-                {c.revealed ? 'Revealed' : 'Reveal'}
+          {clues.map((clue) => (
+            <li key={clue.number}>
+              <div>
+                <strong>Pack {clue.pack} - Clue #{clue.number}: {clue.title}</strong>
+                <div>{clue.text}</div>
+              </div>
+              <button
+                className="btn btn-primary"
+                disabled={busy || clue.revealed}
+                onClick={() => reveal(clue.number)}
+              >
+                {clue.revealed ? 'Revealed' : 'Reveal'}
               </button>
             </li>
           ))}
         </ul>
-      </div>
+      </section>
 
-      <div className="panel">
-        <h3>Revealed Clues</h3>
-        <ul>
-          {revealed.map(r => <li key={r.number}>#{r.number}: {r.text}</li>)}
+      <section className="panel">
+        <h3>Revealed Clues (Live)</h3>
+        <ul className="clue-feed">
+          {revealed.map((clue) => (
+            <li key={clue.number}>
+              <strong>Pack {clue.pack} - Clue #{clue.number}: {clue.title}</strong>
+              <div>{clue.text}</div>
+            </li>
+          ))}
         </ul>
-      </div>
+      </section>
 
-      <div className="panel">
-        <h3>Votes</h3>
+      <section className="panel">
+        <h3>Votes & Results</h3>
         <div className="stack-inline">
           <button className="btn btn-primary" disabled={busy} onClick={() => withErrorHandling(fetchVotes)}>Refresh Votes</button>
           <button className="btn btn-primary" disabled={busy} onClick={fetchResults}>Tally</button>
@@ -133,7 +240,7 @@ export default function HostDashboard({ session, onLogout }) {
         </div>
         <pre>{JSON.stringify(votes, null, 2)}</pre>
         {results && <pre>{JSON.stringify(results, null, 2)}</pre>}
-      </div>
+      </section>
     </div>
   )
 }
