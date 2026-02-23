@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000'
+
 export default function HostDashboard() {
   const [clues, setClues] = useState([])
   const [revealed, setRevealed] = useState([])
@@ -10,23 +12,23 @@ export default function HostDashboard() {
   useEffect(() => { fetchClues(); fetchRevealed(); fetchVotes(); }, [])
 
   const fetchClues = async () => {
-    const res = await axios.get('http://localhost:4000/api/clues')
+    const res = await axios.get(`${API_BASE}/api/clues`)
     setClues(res.data)
   }
   const fetchRevealed = async () => {
-    const res = await axios.get('http://localhost:4000/api/revealed')
+    const res = await axios.get(`${API_BASE}/api/revealed`)
     setRevealed(res.data.revealed)
   }
   const fetchVotes = async () => {
-    const res = await axios.get('http://localhost:4000/api/votes')
+    const res = await axios.get(`${API_BASE}/api/votes`)
     setVotes(res.data.votes)
   }
   const reveal = async (n) => {
-    await axios.post('http://localhost:4000/api/reveal-clue', { number: n })
+    await axios.post(`${API_BASE}/api/reveal-clue`, { number: n })
     fetchRevealed()
   }
   const fetchResults = async () => {
-    const res = await axios.get('http://localhost:4000/api/results')
+    const res = await axios.get(`${API_BASE}/api/results`)
     setResults(res.data)
   }
 
