@@ -31,7 +31,7 @@ function buildRoleDescription(type, addon) {
   return ['Investigate hard, test alibis, and track contradictions.']
 }
 
-export default function PlayerCard({ session, onLogout }) {
+export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundVersionChange }) {
   const player = session.player
   const addon = player.privateAddonData || null
   const roleType = addon?.type || 'civilian'
@@ -50,6 +50,7 @@ export default function PlayerCard({ session, onLogout }) {
   )
 
   const latestAnnouncementIdRef = useRef(0)
+  const roundVersionRef = useRef(Number(session.roundVersion) || 1)
   const browserAlertsEnabledRef = useRef(browserAlertsEnabled)
   const toastTimerRef = useRef(null)
   const titleTimerRef = useRef(null)
@@ -132,6 +133,10 @@ export default function PlayerCard({ session, onLogout }) {
       authHeaders,
     )
     const data = res.data
+    if ((data.roundVersion || 1) > roundVersionRef.current) {
+      roundVersionRef.current = data.roundVersion
+      if (onRoundVersionChange) onRoundVersionChange(data.roundVersion)
+    }
     setRevealedClues(data.revealed || [])
     setMeetingLabel(data.phaseLabel || 'Pregame')
     latestAnnouncementIdRef.current = data.latestAnnouncementId || latestAnnouncementIdRef.current
@@ -224,7 +229,10 @@ export default function PlayerCard({ session, onLogout }) {
           <h2 className="title-sm">{player.name} - {player.title}</h2>
           <p className="status-pill">{meetingLabel}</p>
         </div>
-        <button className="btn btn-ghost" onClick={logout}>Log Out</button>
+        <div className="stack-inline topbar-actions">
+          <button className="btn btn-ghost" onClick={onOpenBriefing}>Case Briefing</button>
+          <button className="btn btn-ghost" onClick={logout}>Log Out</button>
+        </div>
       </div>
 
       <div className="layout-grid player-layout">

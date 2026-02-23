@@ -37,6 +37,7 @@ const state = {
   nextAnnouncementId: 1,
   meeting: 0,
   phaseLabel: 'Pregame',
+  roundVersion: 1,
 };
 
 function createToken() {
@@ -118,6 +119,7 @@ function currentStatePayload(sinceAnnouncementId = 0) {
   return {
     meeting: state.meeting,
     phaseLabel: state.phaseLabel,
+    roundVersion: state.roundVersion,
     latestAnnouncementId: state.nextAnnouncementId - 1,
     announcements: state.announcements.filter((item) => item.id > sinceAnnouncementId),
     revealed: revealedCluesAsArray(),
@@ -155,6 +157,7 @@ app.get('/api/health', (_req, res) => {
     revealedCount: state.revealedClues.size,
     voteCount: state.votesByVoter.size,
     meeting: state.meeting,
+    roundVersion: state.roundVersion,
   });
 });
 
@@ -194,7 +197,7 @@ app.post('/api/auth', (req, res) => {
   if (pin === hostPin) {
     const token = createToken();
     state.sessions.set(token, { role: 'host', createdAt: Date.now() });
-    return res.json({ role: 'host', token });
+    return res.json({ role: 'host', token, roundVersion: state.roundVersion });
   }
 
   const player = playersByPin.get(pin);
@@ -212,7 +215,7 @@ app.post('/api/auth', (req, res) => {
   const addon = privateAddonsByName.get(player.name);
   if (addon) result.privateAddonData = addon;
 
-  return res.json({ role: 'player', token, player: result });
+  return res.json({ role: 'player', token, player: result, roundVersion: state.roundVersion });
 });
 
 app.post('/api/logout', requireSession, (req, res) => {
@@ -331,9 +334,10 @@ app.post('/api/reset', requireSession, requireHost, (_req, res) => {
   state.votesByVoter.clear();
   state.meeting = 0;
   state.phaseLabel = 'Pregame';
+  state.roundVersion += 1;
   state.announcements = [];
   state.nextAnnouncementId = 1;
-  postAnnouncement('system', 'Round reset. Brief everyone and start when ready.');
+  postAnnouncement('system', `Round ${state.roundVersion} reset. Brief everyone and start when ready.`);
   res.json({ ok: true, message: 'game state reset' });
 });
 

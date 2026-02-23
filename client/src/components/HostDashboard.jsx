@@ -4,6 +4,12 @@ import axios from 'axios'
 const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:4000').trim()
 const STATE_POLL_MS = 4000
 
+function formatVoteTime(ms) {
+  if (!ms) return ''
+  const date = new Date(ms)
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
 export default function HostDashboard({ session, onLogout }) {
   const [clues, setClues] = useState([])
   const [revealed, setRevealed] = useState([])
@@ -154,6 +160,9 @@ export default function HostDashboard({ session, onLogout }) {
     }
   }
 
+  const rankedResults = results?.ranked || []
+  const topSuspect = rankedResults[0]?.suspect || 'No tally yet'
+
   return (
     <div className="screen">
       <div className="topbar">
@@ -262,8 +271,45 @@ export default function HostDashboard({ session, onLogout }) {
           <button className="btn btn-primary" disabled={busy} onClick={fetchResults}>Tally</button>
           <button className="btn btn-ghost" disabled={busy} onClick={resetGame}>Reset Round</button>
         </div>
-        <pre>{JSON.stringify(votes, null, 2)}</pre>
-        {results && <pre>{JSON.stringify(results, null, 2)}</pre>}
+        <div className="stat-grid">
+          <div className="stat-card">
+            <div className="label">Votes Submitted</div>
+            <div className="stat-value">{votes.length} / {playerPins.length || 22}</div>
+          </div>
+          <div className="stat-card">
+            <div className="label">Current Leader</div>
+            <div className="stat-value">{topSuspect}</div>
+          </div>
+        </div>
+
+        {votes.length === 0 ? (
+          <p className="hint">No votes yet.</p>
+        ) : (
+          <ul className="vote-list">
+            {votes.map((vote) => (
+              <li key={vote.voter}>
+                <strong>{vote.voter}</strong>
+                <span>voted for</span>
+                <strong>{vote.suspect}</strong>
+                <span>{formatVoteTime(vote.time)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {results && (
+          <div className="results-panel">
+            <h4>Ranked Results</h4>
+            <ol className="rank-list">
+              {rankedResults.map((row) => (
+                <li key={row.suspect}>
+                  <strong>{row.suspect}</strong>
+                  <span>{row.count} vote points</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
       </section>
     </div>
   )
