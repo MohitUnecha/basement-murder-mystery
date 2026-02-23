@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000'
+const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:4000').trim()
 
-export default function HostDashboard({ session }) {
+export default function HostDashboard({ session, onLogout }) {
   const [clues, setClues] = useState([])
   const [revealed, setRevealed] = useState([])
   const [votes, setVotes] = useState([])
@@ -83,17 +83,33 @@ export default function HostDashboard({ session }) {
     setBusy(false)
   }
 
+  const logout = async () => {
+    try {
+      await axios.post(`${API_BASE}/api/logout`, {}, authHeaders)
+    } catch (_err) {
+      // Ignore logout network failures and still clear local session.
+    } finally {
+      onLogout()
+    }
+  }
+
   return (
-    <div className="container">
-      <h2>Host Dashboard</h2>
+    <div className="screen">
+      <div className="topbar">
+        <div>
+          <div className="eyebrow">Host Controls</div>
+          <h2 className="title-sm">Game Master Dashboard</h2>
+        </div>
+        <button className="btn btn-ghost" onClick={logout}>Log Out</button>
+      </div>
       {error && <div className="error">{error}</div>}
       <div className="panel">
         <h3>All Clues</h3>
         <ul>
           {clues.map(c => (
             <li key={c.number}>
-              #{c.number} {c.revealed ? ' (revealed)' : ''} - hidden: {c.hide}
-              <button disabled={busy} onClick={() => reveal(c.number)} style={{ marginLeft: 8 }}>
+              <span>#{c.number} {c.revealed ? '(revealed)' : ''} - hidden: {c.hide}</span>
+              <button className="btn btn-primary" disabled={busy} onClick={() => reveal(c.number)}>
                 Reveal
               </button>
             </li>
@@ -110,9 +126,11 @@ export default function HostDashboard({ session }) {
 
       <div className="panel">
         <h3>Votes</h3>
-        <button disabled={busy} onClick={() => withErrorHandling(fetchVotes)}>Refresh Votes</button>
-        <button disabled={busy} onClick={fetchResults} style={{ marginLeft: 8 }}>Tally</button>
-        <button disabled={busy} onClick={resetGame} style={{ marginLeft: 8 }}>Reset Round</button>
+        <div className="stack-inline">
+          <button className="btn btn-primary" disabled={busy} onClick={() => withErrorHandling(fetchVotes)}>Refresh Votes</button>
+          <button className="btn btn-primary" disabled={busy} onClick={fetchResults}>Tally</button>
+          <button className="btn btn-ghost" disabled={busy} onClick={resetGame}>Reset Round</button>
+        </div>
         <pre>{JSON.stringify(votes, null, 2)}</pre>
         {results && <pre>{JSON.stringify(results, null, 2)}</pre>}
       </div>

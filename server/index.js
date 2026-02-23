@@ -99,6 +99,14 @@ function computeResults() {
   return { tally, ranked, votes: votesAsArray() };
 }
 
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'basement-murder-mystery-api',
+    status: 'ok',
+    docs: '/api/health',
+  });
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',

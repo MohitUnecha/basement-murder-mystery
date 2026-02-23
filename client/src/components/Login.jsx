@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000'
+const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:4000').trim()
 
 export default function Login({ onLogin }) {
   const [pin, setPin] = useState('')
@@ -27,20 +27,29 @@ export default function Login({ onLogin }) {
   }
 
   return (
-    <div className="center">
-      <h1>Basement at 6:17</h1>
-      <form onSubmit={submit} className="card">
-        <label>Enter PIN</label>
-        <input
-          value={pin}
-          onChange={(e) => setPin(e.target.value)}
-          inputMode="numeric"
-          autoComplete="one-time-code"
-        />
-        <button type="submit" disabled={loading}>{loading ? 'Entering...' : 'Enter'}</button>
-        {err && <div className="error">{err}</div>}
-        <div className="hint">Host PIN: 9000. Player PINs: 1001–1022.</div>
-      </form>
+    <div className="screen screen-login">
+      <div className="hero-card">
+        <p className="eyebrow">Game Night Access</p>
+        <h1 className="title">Basement at 6:17</h1>
+        <p className="subtitle">Enter your role PIN to view your private briefing.</p>
+
+        <form onSubmit={submit} className="card">
+          <label className="label">PIN</label>
+          <input
+            className="input"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="e.g. 1001"
+          />
+          <button className="btn btn-primary" type="submit" disabled={loading}>
+            {loading ? 'Entering...' : 'Enter Briefing'}
+          </button>
+          {err && <div className="error">{err}</div>}
+          <div className="hint">Host PIN: 9000. Player PINs: 1001–1022.</div>
+        </form>
+      </div>
     </div>
   )
 }
