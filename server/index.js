@@ -1,8 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
 
 const app = express();
 
@@ -13,10 +11,10 @@ const corsOrigins = process.env.CORS_ORIGINS
 app.use(cors({ origin: corsOrigins }));
 app.use(express.json({ limit: '32kb' }));
 
-const DATA_DIR = path.join(__dirname, 'data');
-const playersData = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'players.json'), 'utf8'));
-const clues = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'clues.json'), 'utf8'));
-const briefing = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'briefing.json'), 'utf8'));
+// Use require() for JSON so Vercel's bundler includes these files
+const playersData = require('./data/players.json');
+const clues = require('./data/clues.json');
+const briefing = require('./data/briefing.json');
 
 const hostPin = Number(playersData.hostPin);
 const players = playersData.players;
