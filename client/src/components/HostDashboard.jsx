@@ -192,7 +192,7 @@ export default function HostDashboard({ session, onLogout }) {
         </div>
       </section>
 
-      <div className="host-grid">
+      <div className="host-grid stagger">
         <section className="panel">
           <h3>Meeting Controls</h3>
           <div className="stack-inline">

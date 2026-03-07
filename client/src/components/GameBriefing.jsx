@@ -72,7 +72,7 @@ export default function GameBriefing({ session, onContinue, onLogout, modal = fa
           )}
         </div>
 
-        <div className="briefing-grid">
+        <div className="briefing-grid stagger">
           <section className="card">
             <h3>The Story</h3>
             {briefing.story.map((line, i) => (

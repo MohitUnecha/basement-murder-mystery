@@ -29,7 +29,8 @@ export default function Login({ onLogin }) {
   return (
     <div className="screen screen-login">
       <div className="hero-card">
-        <p className="eyebrow">Ravenswood Gala -- Classified</p>
+        <div className="gem-decoration"></div>
+        <p className="eyebrow">Ravenswood Gala &mdash; Classified</p>
         <h1 className="title">THE SAPPHIRE OF SHADOWS</h1>
         <p className="subtitle">A priceless gemstone has been stolen. Dr. Priya Mehta lies unconscious. Enter your private key to receive your briefing.</p>
 

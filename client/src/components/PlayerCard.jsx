@@ -54,25 +54,30 @@ export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundV
   const browserAlertsEnabledRef = useRef(browserAlertsEnabled)
   const toastTimerRef = useRef(null)
   const titleTimerRef = useRef(null)
-  const originalTitleRef = useRef(typeof document !== 'undefined' ? document.title : 'The Sapphire of Shadows')
+  const originalTitleRef = useRef(
+    typeof document !== 'undefined' ? document.title : 'The Sapphire of Shadows',
+  )
 
   const authHeaders = useMemo(
-    () => ({
-      headers: { Authorization: `Bearer ${session.token}` },
-    }),
+    () => ({ headers: { Authorization: `Bearer ${session.token}` } }),
     [session.token],
   )
+
+  /* ── Notification helpers ── */
 
   const showToast = (text) => {
     setToast(text)
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    toastTimerRef.current = setTimeout(() => setToast(null), 5000)
+    toastTimerRef.current = setTimeout(() => setToast(null), 6000)
+  }
+
+  const dismissToast = () => {
+    setToast(null)
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
   }
 
   const flashTitle = (text) => {
-    if (typeof document === 'undefined') return
-    if (!document.hidden) return
-
+    if (typeof document === 'undefined' || !document.hidden) return
     if (titleTimerRef.current) clearInterval(titleTimerRef.current)
     let on = false
     let ticks = 0
@@ -80,52 +85,64 @@ export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundV
       on = !on
       document.title = on ? text : originalTitleRef.current
       ticks += 1
-      if (ticks > 8 && titleTimerRef.current) {
+      if (ticks > 10 && titleTimerRef.current) {
         clearInterval(titleTimerRef.current)
         titleTimerRef.current = null
         document.title = originalTitleRef.current
       }
-    }, 550)
+    }, 500)
   }
 
   const tryBrowserNotification = (text, tag) => {
     if (!browserAlertsEnabledRef.current || typeof Notification === 'undefined') return
     if (Notification.permission !== 'granted') return
-    new Notification('Sapphire of Shadows', { body: text, tag })
+    try { new Notification('The Sapphire of Shadows', { body: text, tag }) } catch (_e) {}
+  }
+
+  const tryVibrate = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate([120, 60, 120]) } catch (_e) {}
+    }
   }
 
   const notify = (text, tag) => {
     showToast(text)
-    flashTitle('New Game Update')
+    flashTitle('\u{1F514} New Update!')
     tryBrowserNotification(text, tag)
+    tryVibrate()
   }
 
   const enableBrowserAlerts = async () => {
     if (typeof Notification === 'undefined') {
-      showToast('Device notifications are not supported in this browser.')
+      showToast('Browser notifications are not supported on this device.')
       return
     }
-
     if (Notification.permission === 'granted') {
       setBrowserAlertsEnabled(true)
-      notify('Device notifications are already enabled.', 'alerts-enabled')
+      browserAlertsEnabledRef.current = true
+      notify('Notifications are already active!', 'alerts-on')
       return
     }
-
     if (Notification.permission === 'denied') {
-      notify('Notifications are blocked. Enable them in browser site settings.', 'alerts-blocked')
+      showToast('Notifications blocked \u2014 enable them in your browser settings.')
       return
     }
-
     const permission = await Notification.requestPermission()
     const enabled = permission === 'granted'
     setBrowserAlertsEnabled(enabled)
-    notify(enabled ? 'Device notifications enabled.' : 'Device notifications not enabled.', 'alerts-result')
+    browserAlertsEnabledRef.current = enabled
+    if (enabled) {
+      notify('Notifications enabled! You will get alerts for game updates.', 'alerts-result')
+    } else {
+      showToast('Notifications were not enabled.')
+    }
   }
 
   const testAlert = () => {
-    notify('Test alert: your notifications are active for game updates.', 'test-alert')
+    notify('Test alert \u2014 your notifications are working!', 'test-alert')
   }
+
+  /* ── Polling ── */
 
   const pollGameState = async () => {
     const res = await axios.get(
@@ -142,7 +159,7 @@ export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundV
     latestAnnouncementIdRef.current = data.latestAnnouncementId || latestAnnouncementIdRef.current
 
     if (data.announcements?.length) {
-      setAnnouncements((prev) => [...data.announcements, ...prev].slice(0, 18))
+      setAnnouncements((prev) => [...data.announcements, ...prev].slice(0, 20))
       data.announcements.forEach((item) => notify(item.message, `announcement-${item.id}`))
     }
   }
@@ -178,11 +195,7 @@ export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundV
 
     const intervalId = setInterval(async () => {
       if (!active) return
-      try {
-        await pollGameState()
-      } catch (_err) {
-        // Ignore transient polling errors.
-      }
+      try { await pollGameState() } catch (_err) {}
     }, GAME_STATE_POLL_MS)
 
     return () => {
@@ -194,16 +207,17 @@ export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundV
     }
   }, [player.name])
 
+  /* ── Vote ── */
+
   const submitVote = async (event) => {
     event.preventDefault()
     if (!suspectName) return
-
     try {
       setBusy(true)
       setError(null)
       setVoteMessage(null)
       await axios.post(`${API_BASE}/api/vote`, { suspectName }, authHeaders)
-      setVoteMessage(`Vote submitted for ${suspectName}. You can still update it before final tally.`)
+      setVoteMessage(`Vote locked for ${suspectName}. You can change it before final tally.`)
     } catch (err) {
       setError(err.response?.data?.error || err.message)
     } finally {
@@ -212,30 +226,45 @@ export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundV
   }
 
   const logout = async () => {
-    try {
-      await axios.post(`${API_BASE}/api/logout`, {}, authHeaders)
-    } catch (_err) {
-      // Ignore logout network failures and still clear local session.
-    } finally {
-      onLogout()
-    }
+    try { await axios.post(`${API_BASE}/api/logout`, {}, authHeaders) } catch (_err) {}
+    onLogout()
   }
+
+  /* ── Render ── */
 
   return (
     <div className="screen">
+      {/* Sticky topbar */}
       <div className="topbar">
         <div>
           <div className="eyebrow">Investigation Live</div>
-          <h2 className="title-sm">{player.name} - {player.title}</h2>
+          <h2 className="title-sm">{player.name} \u2014 {player.title}</h2>
           <p className="status-pill">{meetingLabel}</p>
         </div>
-        <div className="stack-inline topbar-actions">
-          <button className="btn btn-ghost" onClick={onOpenBriefing}>Case Briefing</button>
-          <button className="btn btn-ghost" onClick={logout}>Log Out</button>
+        <div className="topbar-actions">
+          <button className="btn btn-ghost btn-sm" onClick={onOpenBriefing}>Briefing</button>
+          <button className="btn btn-ghost btn-sm" onClick={logout}>Log Out</button>
         </div>
       </div>
 
+      {/* Alert Control Bar */}
+      <div className={`alert-bar ${browserAlertsEnabled ? 'alert-bar-on' : 'alert-bar-off'}`}>
+        <span className="alert-icon">{browserAlertsEnabled ? '\u{1F514}' : '\u{1F515}'}</span>
+        <div className="alert-bar-text">
+          <strong>{browserAlertsEnabled ? 'Alerts Active' : 'Enable Alerts'}</strong>
+          {browserAlertsEnabled
+            ? "You'll be notified when clues drop, meetings start, or the host broadcasts."
+            : 'Turn on alerts so you never miss a clue reveal or meeting call.'}
+        </div>
+        {!browserAlertsEnabled ? (
+          <button className="btn-alert-enable" onClick={enableBrowserAlerts}>Enable Now</button>
+        ) : (
+          <button className="btn btn-ghost btn-sm" onClick={testAlert}>Test</button>
+        )}
+      </div>
+
       <div className="layout-grid player-layout">
+        {/* Left: Character Card */}
         <section className="card briefing">
           <h3>Your Card</h3>
           <div className="card-field">
@@ -272,7 +301,8 @@ export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundV
           </div>
         </section>
 
-        <div className="stack">
+        {/* Right column */}
+        <div className="stack stagger">
           <section className={`card role-card role-${roleType}`}>
             <h3>{getRoleTitle(roleType)}</h3>
             <ul className="simple-list">
@@ -284,14 +314,13 @@ export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundV
 
           <section className="card">
             <h3>Live Clue Feed</h3>
-            <p className="hint">All revealed clues appear here in real time.</p>
             {revealedClues.length === 0 ? (
-              <p className="hint">No clues revealed yet.</p>
+              <p className="hint">No clues revealed yet \u2014 stay tuned.</p>
             ) : (
               <ul className="clue-feed">
                 {revealedClues.map((clue) => (
                   <li key={clue.number}>
-                    <strong>Pack {clue.pack} - Clue #{clue.number}:</strong> {clue.title}
+                    <strong>Pack {clue.pack} \u2014 Clue #{clue.number}: {clue.title}</strong>
                     <div>{clue.text}</div>
                   </li>
                 ))}
@@ -317,7 +346,7 @@ export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundV
           <section className="card">
             <h3>Final Vote</h3>
             <form onSubmit={submitVote} className="stack">
-              <label className="label">Suspect</label>
+              <label className="label">Who do you think did it?</label>
               <select
                 className="input"
                 value={suspectName}
@@ -328,17 +357,9 @@ export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundV
                   <option key={name} value={name}>{name}</option>
                 ))}
               </select>
-              <div className="stack-inline">
-                <button className="btn btn-primary" disabled={!suspectName || busy}>
-                  {busy ? 'Submitting...' : 'Submit Vote'}
-                </button>
-                <button className="btn btn-ghost" type="button" onClick={enableBrowserAlerts}>
-                  {browserAlertsEnabled ? 'Device Alerts On' : 'Enable Device Alerts'}
-                </button>
-                <button className="btn btn-ghost" type="button" onClick={testAlert}>
-                  Test Alert
-                </button>
-              </div>
+              <button className="btn btn-primary" disabled={!suspectName || busy}>
+                {busy ? 'Submitting...' : 'Submit Vote'}
+              </button>
             </form>
             {voteMessage && <p className="success">{voteMessage}</p>}
             {error && <p className="error">{error}</p>}
@@ -346,7 +367,14 @@ export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundV
         </div>
       </div>
 
-      {toast && <div className="floating-toast">{toast}</div>}
+      {/* Toast notification */}
+      {toast && (
+        <div className="floating-toast">
+          <span className="toast-icon">\u{1F514}</span>
+          <div style={{ flex: 1 }}>{toast}</div>
+          <button className="toast-close" onClick={dismissToast}>\u00D7</button>
+        </div>
+      )}
     </div>
   )
 }
