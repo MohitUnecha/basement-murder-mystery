@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 
-const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:4000').trim()
+const API_BASE = import.meta.env.VITE_API_BASE !== undefined 
+  ? import.meta.env.VITE_API_BASE.trim() 
+  : 'http://localhost:4000'
 
 export default function GameBriefing({ session, onContinue, onLogout, modal = false, onClose = null }) {
   const [briefing, setBriefing] = useState(null)

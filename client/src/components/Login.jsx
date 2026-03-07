@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
 import axios from 'axios'
 
-const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:4000').trim()
+const API_BASE = import.meta.env.VITE_API_BASE !== undefined 
+  ? import.meta.env.VITE_API_BASE.trim() 
+  : 'http://localhost:4000'
 
 export default function Login({ onLogin }) {
   const [step, setStep] = useState(1) // 1 = pin, 2 = phone
