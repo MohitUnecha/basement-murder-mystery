@@ -29,6 +29,27 @@ const detectiveNames = new Set(
   privateAddons.filter((addon) => addon.type === 'detective').map((addon) => addon.name),
 );
 
+/* ═══════ Twilio (optional) ═══════ */
+
+let twilioClient = null;
+const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID || '';
+const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
+const TWILIO_FROM = process.env.TWILIO_PHONE_NUMBER || '';
+
+if (TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM) {
+  try {
+    const twilio = require('twilio');
+    twilioClient = twilio(TWILIO_SID, TWILIO_TOKEN);
+    console.log('Twilio enabled — meeting calls will be placed.');
+  } catch (_err) {
+    console.log('Twilio SDK not installed. Run: npm install twilio');
+  }
+} else {
+  console.log('Twilio env vars not set — meeting calls disabled (in-app alerts still work).');
+}
+
+/* ═══════ State ═══════ */
+
 const state = {
   revealedClues: new Set(),
   votesByVoter: new Map(),
@@ -38,7 +59,12 @@ const state = {
   meeting: 0,
   phaseLabel: 'Pregame',
   roundVersion: 1,
+  phoneNumbers: new Map(),   // playerName → phone string
+  chatMessages: [],
+  nextChatId: 1,
 };
+
+/* ═══════ Helpers ═══════ */
 
 function createToken() {
   return crypto.randomBytes(24).toString('hex');
@@ -76,10 +102,8 @@ function getTokenFromHeader(req) {
 function requireSession(req, res, next) {
   const token = getTokenFromHeader(req);
   if (!token) return res.status(401).json({ error: 'missing bearer token' });
-
   const session = state.sessions.get(token);
   if (!session) return res.status(401).json({ error: 'invalid or expired token' });
-
   req.session = session;
   req.sessionToken = token;
   return next();
@@ -128,25 +152,61 @@ function currentStatePayload(sinceAnnouncementId = 0) {
 
 function computeResults() {
   const tally = {};
-
   for (const vote of state.votesByVoter.values()) {
     const weight = detectiveNames.has(vote.voter) ? 2 : 1;
     tally[vote.suspect] = (tally[vote.suspect] || 0) + weight;
   }
-
   const ranked = Object.entries(tally)
     .map(([suspect, count]) => ({ suspect, count }))
     .sort((a, b) => b.count - a.count);
-
   return { tally, ranked, votes: votesAsArray() };
 }
 
+function normalizePhone(raw) {
+  if (typeof raw !== 'string') return null;
+  const digits = raw.replace(/[^0-9+]/g, '');
+  if (digits.length < 7 || digits.length > 16) return null;
+  return digits;
+}
+
+/* ═══════ Twilio call helper ═══════ */
+
+async function callAllPlayersForMeeting(meetingNumber) {
+  if (!twilioClient) return { called: 0, skipped: 'twilio not configured' };
+
+  const meetingLabels = {
+    1: 'Meeting 1. Please review Pack A clues and join the open discussion.',
+    2: 'Meeting 2. Please review Pack B clues and challenge everyone\'s timelines.',
+    3: 'The Final Meeting. Please review Pack C clues and submit your final accusation before time runs out.',
+  };
+
+  const twiml = `<Response><Say voice="alice">Attention investigators. The Sapphire of Shadows game is now conducting ${meetingLabels[meetingNumber] || 'a meeting'}. This is an automated call. Goodbye.</Say><Pause length="1"/><Hangup/></Response>`;
+
+  const numbers = Array.from(state.phoneNumbers.entries());
+  let called = 0;
+  const errors = [];
+
+  for (const [name, phone] of numbers) {
+    try {
+      await twilioClient.calls.create({
+        twiml,
+        to: phone,
+        from: TWILIO_FROM,
+        timeout: 10,
+      });
+      called++;
+    } catch (err) {
+      errors.push({ name, error: err.message });
+    }
+  }
+
+  return { called, total: numbers.length, errors };
+}
+
+/* ═══════ Routes ═══════ */
+
 app.get('/', (_req, res) => {
-  res.json({
-    service: 'basement-murder-mystery-api',
-    status: 'ok',
-    docs: '/api/health',
-  });
+  res.json({ service: 'basement-murder-mystery-api', status: 'ok' });
 });
 
 app.get('/api/health', (_req, res) => {
@@ -158,6 +218,8 @@ app.get('/api/health', (_req, res) => {
     voteCount: state.votesByVoter.size,
     meeting: state.meeting,
     roundVersion: state.roundVersion,
+    twilioEnabled: !!twilioClient,
+    phoneRegistrations: state.phoneNumbers.size,
   });
 });
 
@@ -165,6 +227,7 @@ app.get('/api/game-briefing', (_req, res) => {
   res.json(briefing);
 });
 
+/* Lightweight public player list (for suspect dropdown) */
 app.get('/api/players', (_req, res) => {
   res.json({
     players: players.map((player) => ({
@@ -181,18 +244,19 @@ app.get('/api/player-pins', requireSession, requireHost, (_req, res) => {
       name: player.name,
       title: player.title,
       pin: player.pin,
+      phone: state.phoneNumbers.get(player.name) || null,
     }))
     .sort((a, b) => Number(a.pin) - Number(b.pin));
-
-  res.json({
-    hostPin,
-    players: sorted,
-  });
+  res.json({ hostPin, players: sorted });
 });
+
+/* ═══════ Auth (PIN + phone) ═══════ */
 
 app.post('/api/auth', (req, res) => {
   const pin = parsePin(req.body?.pin);
   if (!pin) return res.status(400).json({ error: 'valid pin required' });
+
+  const phone = normalizePhone(req.body?.phone || '');
 
   if (pin === hostPin) {
     const token = createToken();
@@ -203,11 +267,18 @@ app.post('/api/auth', (req, res) => {
   const player = playersByPin.get(pin);
   if (!player) return res.status(404).json({ error: 'invalid pin' });
 
+  // Require phone for players
+  if (!phone) return res.status(400).json({ error: 'phone number required' });
+
+  // Store phone number
+  state.phoneNumbers.set(player.name, phone);
+
   const token = createToken();
   state.sessions.set(token, {
     role: 'player',
     playerName: player.name,
     pin,
+    phone,
     createdAt: Date.now(),
   });
 
@@ -222,6 +293,8 @@ app.post('/api/logout', requireSession, (req, res) => {
   state.sessions.delete(req.sessionToken);
   res.json({ ok: true });
 });
+
+/* ═══════ Clues ═══════ */
 
 app.get('/api/clues', requireSession, requireHost, (_req, res) => {
   res.json(
@@ -250,7 +323,6 @@ app.post('/api/reveal-clue', requireSession, requireHost, (req, res) => {
   if (!Number.isInteger(number) || number <= 0) {
     return res.status(400).json({ error: 'valid clue number required' });
   }
-
   const clue = clues.find((entry) => entry.number === number);
   if (!clue) return res.status(404).json({ error: 'clue not found' });
 
@@ -262,11 +334,12 @@ app.post('/api/reveal-clue', requireSession, requireHost, (req, res) => {
       cluePack: clue.pack,
     });
   }
-
   return res.json({ revealed: revealedCluesAsArray() });
 });
 
-app.post('/api/meeting', requireSession, requireHost, (req, res) => {
+/* ═══════ Meetings + Twilio calls ═══════ */
+
+app.post('/api/meeting', requireSession, requireHost, async (req, res) => {
   const meeting = Number(req.body?.meeting);
   if (![1, 2, 3].includes(meeting)) {
     return res.status(400).json({ error: 'meeting must be 1, 2, or 3' });
@@ -282,17 +355,29 @@ app.post('/api/meeting', requireSession, requireHost, (req, res) => {
   };
 
   const announcement = postAnnouncement('meeting', messageByMeeting[meeting], { meeting });
-  return res.json({ ok: true, meeting: state.meeting, announcement });
+
+  // Trigger Twilio calls in the background
+  let callResult = null;
+  if (twilioClient) {
+    try {
+      callResult = await callAllPlayersForMeeting(meeting);
+    } catch (err) {
+      callResult = { error: err.message };
+    }
+  }
+
+  return res.json({ ok: true, meeting: state.meeting, announcement, calls: callResult });
 });
 
 app.post('/api/announce', requireSession, requireHost, (req, res) => {
   const message = normalizeName(req.body?.message);
   if (!message) return res.status(400).json({ error: 'message required' });
   if (message.length > 220) return res.status(400).json({ error: 'message too long (max 220 chars)' });
-
   const announcement = postAnnouncement('host', message);
   return res.json({ ok: true, announcement });
 });
+
+/* ═══════ Votes ═══════ */
 
 app.post('/api/vote', requireSession, (req, res) => {
   const suspectName = normalizeName(req.body?.suspectName);
@@ -317,7 +402,6 @@ app.post('/api/vote', requireSession, (req, res) => {
     suspect: suspectName,
     time: Date.now(),
   });
-
   return res.json({ votes: votesAsArray() });
 });
 
@@ -329,6 +413,44 @@ app.get('/api/results', requireSession, requireHost, (_req, res) => {
   res.json(computeResults());
 });
 
+/* ═══════ Chat ═══════ */
+
+app.get('/api/chat', requireSession, (req, res) => {
+  const sinceChatId = Number(req.query.sinceChatId) || 0;
+  const messages = state.chatMessages.filter((msg) => msg.id > sinceChatId);
+  return res.json({
+    messages,
+    latestChatId: state.chatMessages.length > 0
+      ? state.chatMessages[state.chatMessages.length - 1].id
+      : 0,
+  });
+});
+
+app.post('/api/chat', requireSession, (req, res) => {
+  const text = normalizeName(req.body?.text);
+  if (!text) return res.status(400).json({ error: 'text required' });
+  if (text.length > 300) return res.status(400).json({ error: 'message too long (max 300)' });
+
+  const sender = req.session.role === 'host' ? 'Host' : req.session.playerName;
+
+  const msg = {
+    id: state.nextChatId++,
+    sender,
+    text,
+    createdAt: nowIso(),
+  };
+  state.chatMessages.push(msg);
+
+  // Keep last 500 chat messages
+  if (state.chatMessages.length > 500) {
+    state.chatMessages = state.chatMessages.slice(-500);
+  }
+
+  return res.json({ ok: true, message: msg });
+});
+
+/* ═══════ Reset ═══════ */
+
 app.post('/api/reset', requireSession, requireHost, (_req, res) => {
   state.revealedClues.clear();
   state.votesByVoter.clear();
@@ -337,9 +459,13 @@ app.post('/api/reset', requireSession, requireHost, (_req, res) => {
   state.roundVersion += 1;
   state.announcements = [];
   state.nextAnnouncementId = 1;
+  state.chatMessages = [];
+  state.nextChatId = 1;
   postAnnouncement('system', `Round ${state.roundVersion} reset. Brief everyone and start when ready.`);
   res.json({ ok: true, message: 'game state reset' });
 });
+
+/* ═══════ Error handling ═══════ */
 
 app.use((err, _req, res, _next) => {
   console.error(err);

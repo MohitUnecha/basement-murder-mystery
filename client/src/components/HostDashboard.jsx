@@ -1,13 +1,20 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:4000').trim()
-const STATE_POLL_MS = 4000
+const STATE_POLL_MS = 3000
+const CHAT_POLL_MS = 2000
 
 function formatVoteTime(ms) {
   if (!ms) return ''
   const date = new Date(ms)
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+function formatChatTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
 export default function HostDashboard({ session, onLogout }) {
@@ -22,7 +29,15 @@ export default function HostDashboard({ session, onLogout }) {
   const [customMessage, setCustomMessage] = useState('')
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [callStatus, setCallStatus] = useState(null)
   const latestAnnouncementIdRef = useRef(0)
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatText, setChatText] = useState('')
+  const [chatSending, setChatSending] = useState(false)
+  const latestChatIdRef = useRef(0)
+  const chatEndRef = useRef(null)
 
   const authHeaders = useMemo(
     () => ({
@@ -74,31 +89,59 @@ export default function HostDashboard({ session, onLogout }) {
     }
   }
 
+  const pollChat = useCallback(async () => {
+    const res = await axios.get(
+      `${API_BASE}/api/chat?sinceChatId=${latestChatIdRef.current}`,
+      authHeaders,
+    )
+    const data = res.data
+    if (data.messages?.length) {
+      setChatMessages((prev) => [...prev, ...data.messages].slice(-200))
+      latestChatIdRef.current = data.latestChatId || latestChatIdRef.current
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    }
+  }, [authHeaders])
+
+  const sendChat = async (e) => {
+    e.preventDefault()
+    const text = chatText.trim()
+    if (!text) return
+    setChatSending(true)
+    try {
+      await axios.post(`${API_BASE}/api/chat`, { text }, authHeaders)
+      setChatText('')
+      await pollChat()
+    } catch (_err) {}
+    setChatSending(false)
+  }
+
   useEffect(() => {
     let active = true
     const loadInitial = async () => {
       setBusy(true)
       await withErrorHandling(async () => {
-        await Promise.all([fetchClues(), fetchVotes(), fetchGameState(), fetchPins()])
+        await Promise.all([fetchClues(), fetchVotes(), fetchGameState(), fetchPins(), pollChat()])
       })
       if (active) setBusy(false)
     }
     loadInitial()
 
-    const timer = setInterval(async () => {
+    const gameTimer = setInterval(async () => {
       if (!active) return
-      try {
-        await fetchGameState()
-      } catch (_err) {
-        // Ignore transient polling errors.
-      }
+      try { await fetchGameState() } catch (_err) {}
     }, STATE_POLL_MS)
+
+    const chatTimer = setInterval(async () => {
+      if (!active) return
+      try { await pollChat() } catch (_err) {}
+    }, CHAT_POLL_MS)
 
     return () => {
       active = false
-      clearInterval(timer)
+      clearInterval(gameTimer)
+      clearInterval(chatTimer)
     }
-  }, [])
+  }, [pollChat])
 
   const reveal = async (number) => {
     await withErrorHandling(async () => {
@@ -112,7 +155,11 @@ export default function HostDashboard({ session, onLogout }) {
   const setMeeting = async (meeting) => {
     await withErrorHandling(async () => {
       setBusy(true)
-      await axios.post(`${API_BASE}/api/meeting`, { meeting }, authHeaders)
+      setCallStatus(null)
+      const res = await axios.post(`${API_BASE}/api/meeting`, { meeting }, authHeaders)
+      if (res.data.calls) {
+        setCallStatus(res.data.calls)
+      }
       await fetchGameState()
     })
     setBusy(false)
@@ -187,6 +234,7 @@ export default function HostDashboard({ session, onLogout }) {
             <div key={entry.pin} className="key-card">
               <strong>{entry.name}</strong>
               <div>{entry.pin}</div>
+              {entry.phone && <div className="key-phone">{entry.phone}</div>}
             </div>
           ))}
         </div>
@@ -213,6 +261,18 @@ export default function HostDashboard({ session, onLogout }) {
               Broadcast Message
             </button>
           </form>
+          {callStatus && (
+            <div className="call-status">
+              <h4>Call Status</h4>
+              <ul className="simple-list">
+                {callStatus.map((c, i) => (
+                  <li key={i} className={c.status === 'called' ? 'call-ok' : 'call-fail'}>
+                    <strong>{c.player}</strong>: {c.status === 'called' ? `Called ${c.phone}` : c.error || 'Not called'}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
 
         <section className="panel">
@@ -310,6 +370,44 @@ export default function HostDashboard({ session, onLogout }) {
             </ol>
           </div>
         )}
+      </section>
+
+      {/* ── Investigation Chat (Host View) ── */}
+      <section className="panel chat-card">
+        <h3>Investigation Chat</h3>
+        <div className="chat-messages">
+          {chatMessages.length === 0 && (
+            <p className="hint" style={{ textAlign: 'center', padding: '20px 0' }}>
+              No messages yet.
+            </p>
+          )}
+          {chatMessages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`chat-bubble ${msg.sender === 'Host' ? 'chat-mine chat-host' : ''}`}
+            >
+              <div className="chat-meta">
+                <strong>{msg.sender}</strong>
+                <span>{formatChatTime(msg.createdAt)}</span>
+              </div>
+              <div className="chat-text">{msg.text}</div>
+            </div>
+          ))}
+          <div ref={chatEndRef} />
+        </div>
+        <form className="chat-input-row" onSubmit={sendChat}>
+          <input
+            className="input chat-input"
+            value={chatText}
+            onChange={(e) => setChatText(e.target.value)}
+            placeholder="Message as Host..."
+            maxLength={300}
+            disabled={chatSending}
+          />
+          <button className="btn btn-primary chat-send" type="submit" disabled={!chatText.trim() || chatSending}>
+            Send
+          </button>
+        </form>
       </section>
     </div>
   )

@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React, { lazy, Suspense, useState } from 'react'
 import Login from './components/Login'
-import PlayerCard from './components/PlayerCard'
-import HostDashboard from './components/HostDashboard'
-import GameBriefing from './components/GameBriefing'
+const PlayerCard = lazy(() => import('./components/PlayerCard'))
+const HostDashboard = lazy(() => import('./components/HostDashboard'))
+const GameBriefing = lazy(() => import('./components/GameBriefing'))
 
 function briefingSeenKey(session) {
   if (!session?.player?.pin) return 'sapphire_briefing_seen_round'
@@ -54,13 +54,21 @@ export default function App() {
 
   if (!session) return <Login onLogin={onLogin} />
 
+  const loadingFallback = (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: '#6e7a88', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      Loading...
+    </div>
+  )
+
   if (!started && session.role !== 'host') {
     return (
-      <GameBriefing
-        session={session}
-        onContinue={finishBriefing}
-        onLogout={() => setSession(null)}
-      />
+      <Suspense fallback={loadingFallback}>
+        <GameBriefing
+          session={session}
+          onContinue={finishBriefing}
+          onLogout={() => setSession(null)}
+        />
+      </Suspense>
     )
   }
 
@@ -83,7 +91,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <Suspense fallback={loadingFallback}>
       {content}
       {session.role === 'player' && briefingPopupOpen && (
         <GameBriefing
@@ -94,6 +102,6 @@ export default function App() {
           onClose={finishBriefing}
         />
       )}
-    </>
+    </Suspense>
   )
 }

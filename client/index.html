@@ -6,7 +6,14 @@
     <meta name="theme-color" content="#07090d" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <title>The Sapphire of Shadows — Murder Mystery</title>
+    <style>
+      /* Inline critical: prevent FOUC */
+      body { background: #07090d; color: #e4e8ed; font-family: -apple-system, system-ui, sans-serif; }
+      #root { min-height: 100dvh; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
