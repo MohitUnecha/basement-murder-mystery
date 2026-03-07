@@ -1081,6 +1081,34 @@ select option {
 .stagger > *:nth-child(5) { animation-delay: 320ms; }
 .stagger > *:nth-child(6) { animation-delay: 400ms; }
 
+/* ═══════════════ TOUCH DEVICES ═══════════════ */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Disable hover lift/transforms — they look janky on touch */
+  .card:hover,
+  .panel li:hover,
+  .clue-feed li:hover,
+  .vote-list li:hover,
+  .key-card:hover,
+  .talk-tag:hover,
+  .announcement-list li:hover,
+  .simple-list li:hover {
+    transform: none;
+    box-shadow: inherit;
+  }
+
+  /* Bigger tap targets */
+  .btn { min-height: 46px; }
+  .btn-sm { min-height: 40px; }
+  select, .input { min-height: 48px; font-size: 16px !important; /* prevents iOS zoom */ }
+
+  /* Tappable feedback */
+  .btn:active { opacity: 0.75; transform: scale(0.97) !important; }
+  .talk-tag:active { background: rgba(74,142,230,0.2); }
+
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ═══════════════ RESPONSIVE ═══════════════ */
 
 @media (max-width: 900px) {
@@ -1099,48 +1127,375 @@ select option {
 }
 
 @media (max-width: 640px) {
-  .screen {
-    width: calc(100vw - 12px);
-    margin: 8px auto;
+  :root {
+    --radius: 14px;
+    --radius-lg: 18px;
   }
+
+  body {
+    font-size: 15px;
+  }
+
+  .screen {
+    width: 100%;
+    padding: 0 8px;
+    margin: 0 auto;
+    padding-bottom: 80px;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .screen-login {
+    padding: 16px 12px;
+    min-height: 100dvh;
+  }
+
+  /* ── LOGIN ── */
 
   .hero-card {
-    padding: 32px 22px;
-    border-radius: 20px;
+    padding: 28px 18px 24px;
+    border-radius: 18px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   }
 
-  .gem-decoration { width: 44px; height: 44px; }
+  .gem-decoration { width: 40px; height: 40px; margin-bottom: 16px; }
+
+  .title { font-size: 28px; margin-bottom: 10px; }
+
+  .hero-card .subtitle {
+    font-size: 13px;
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+
+  .hero-card .card {
+    padding: 16px !important;
+    gap: 10px !important;
+  }
+
+  /* ── TOPBAR ── */
 
   .topbar {
     flex-direction: column;
-    align-items: flex-start;
-    padding: 14px 16px;
-    top: 4px;
+    align-items: stretch;
+    padding: 12px 14px;
+    top: 0;
+    border-radius: 0 0 14px 14px;
+    margin: 0 -8px 12px;
+    width: calc(100% + 16px);
+    gap: 10px;
   }
 
-  .topbar-actions { width: 100%; }
-  .topbar-actions .btn { flex: 1; }
-  .stat-grid { grid-template-columns: 1fr; }
-  .vote-list li { grid-template-columns: 1fr; gap: 4px; }
-  .stack-inline { width: 100%; }
-  .stack-inline .btn { flex: 1; min-width: 0; }
-  .card, .panel { padding: 16px; }
+  .topbar > div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .eyebrow { font-size: 9px; letter-spacing: 0.2em; }
+
+  .title-sm { font-size: 18px; }
+
+  .status-pill { 
+    font-size: 10px; 
+    padding: 3px 10px;
+    align-self: flex-start;
+  }
+
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .topbar-actions .btn {
+    width: 100%;
+    text-align: center;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── ALERT BAR ── */
+
+  .alert-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 14px 14px;
+    margin: 0 0 12px;
+    border-radius: 14px;
+  }
+
+  .alert-bar > .alert-icon { display: none; }
+
+  .alert-bar-text {
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .alert-bar-text strong {
+    font-size: 14px;
+    margin-bottom: 3px;
+  }
+
+  .btn-alert-enable {
+    width: 100%;
+    padding: 12px;
+    font-size: 13px;
+    min-height: 46px;
+    border-radius: 12px;
+  }
+
+  .alert-bar .btn-ghost {
+    width: 100%;
+    text-align: center;
+    min-height: 42px;
+  }
+
+  /* ── LAYOUT GRID ── */
+
+  .layout-grid,
+  .player-layout {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  .briefing-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* ── CARDS ── */
+
+  .card, .panel {
+    padding: 16px 14px;
+    border-radius: 14px;
+  }
+
+  .card h3, .panel h3 {
+    font-size: 16px;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .card h3::before, .panel h3::before {
+    width: 3px;
+    height: 16px;
+  }
+
+  .card:hover {
+    transform: none;
+    background: var(--bg-card);
+  }
+
+  /* ── CARD FIELDS ── */
+
+  .card-field {
+    padding: 12px 0;
+  }
+
+  .card-field-label {
+    font-size: 10px;
+    margin-bottom: 5px;
+    letter-spacing: 0.12em;
+  }
+
+  .card-field p {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .secret-field {
+    padding: 14px 12px !important;
+    margin: 4px -2px;
+    border-radius: 12px;
+  }
+
+  .must-talk-tags {
+    gap: 6px;
+  }
+
+  .talk-tag {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  /* ── CLUE FEED ── */
+
+  .clue-feed li {
+    padding: 12px 14px;
+    font-size: 13px;
+    border-radius: 12px;
+  }
+
+  .clue-feed li strong {
+    font-size: 11px;
+  }
+
+  /* ── ANNOUNCEMENTS ── */
+
+  .announcement-list li,
+  .simple-list li {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  /* ── VOTE SECTION ── */
+
+  .vote-list li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 12px;
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .stat-card { padding: 12px; }
+
+  .stat-value { font-size: 20px; }
+
+  /* ── FORM ELEMENTS ── */
+
+  .input, select {
+    padding: 14px;
+    font-size: 16px;
+    border-radius: 12px;
+    min-height: 48px;
+  }
+
+  .btn {
+    padding: 13px 16px;
+    font-size: 14px;
+    border-radius: 12px;
+    min-height: 46px;
+  }
+
+  .btn-primary {
+    font-size: 14px;
+  }
+
+  .btn-sm {
+    padding: 10px 14px;
+    font-size: 13px;
+    min-height: 42px;
+  }
+
+  .stack { gap: 10px; }
+
+  .stack-inline {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .stack-inline .btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* ── HOST DASHBOARD ── */
+
+  .host-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .key-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .key-card {
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .key-card strong { font-size: 9px; }
+  .key-card div { font-size: 18px; }
+
+  /* ── RESULTS ── */
+
+  .results-panel {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .results-panel h4 { font-size: 18px; }
+
+  .rank-list li {
+    gap: 8px;
+    font-size: 14px;
+  }
+
+  /* ── TOAST ── */
 
   .floating-toast {
     right: 8px;
     left: 8px;
-    bottom: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
     max-width: none;
-  }
-
-  .key-grid {
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  }
-
-  .alert-bar {
-    flex-wrap: wrap;
+    padding: 14px 14px;
+    border-radius: 14px;
+    font-size: 13px;
     gap: 10px;
   }
+
+  .toast-icon { font-size: 18px; }
+  .toast-close { font-size: 22px; padding: 4px; }
+
+  /* ── BRIEFING MODAL ── */
+
+  .briefing-modal-overlay {
+    padding: 8px;
+  }
+
+  .briefing-modal {
+    margin: 8px auto;
+  }
+
+  /* ── ROLE CARDS ── */
+
+  .role-card:hover { transform: none; }
+
+  .simple-list li {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+
+  /* ── MISC ── */
+
+  .hint { font-size: 12px; }
+  .error, .success { font-size: 13px; }
+  .label { font-size: 10px; }
+  p { line-height: 1.6; }
+}
+
+/* Extra small devices (iPhone SE etc.) */
+@media (max-width: 380px) {
+  .hero-card {
+    padding: 22px 14px 20px;
+  }
+
+  .title { font-size: 24px; }
+
+  .hero-card .subtitle { font-size: 12px; }
+
+  .topbar { padding: 10px 12px; }
+  .title-sm { font-size: 16px; }
+
+  .card, .panel { padding: 14px 12px; }
+
+  .key-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .stat-grid { grid-template-columns: 1fr; }
+
+  .talk-tag { font-size: 12px; padding: 5px 10px; }
 }
 
 /* Scrollbar */
