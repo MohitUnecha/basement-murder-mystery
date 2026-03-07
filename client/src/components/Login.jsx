@@ -29,11 +29,11 @@ export default function Login({ onLogin }) {
   return (
     <div className="screen screen-login">
       <div className="hero-card">
-        <p className="eyebrow">Game Night Access</p>
+        <p className="eyebrow">Ravenswood Gala -- Classified</p>
         <h1 className="title">THE SAPPHIRE OF SHADOWS</h1>
-        <p className="subtitle">Enter your game key to view your private briefing.</p>
+        <p className="subtitle">A priceless gemstone has been stolen. Dr. Priya Mehta lies unconscious. Enter your private key to receive your briefing.</p>
 
-        <form onSubmit={submit} className="card">
+        <form onSubmit={submit} className="card" style={{ display: 'grid', gap: '12px', padding: '20px' }}>
           <label className="label">Game Key</label>
           <input
             className="input"
@@ -41,13 +41,13 @@ export default function Login({ onLogin }) {
             onChange={(e) => setPin(e.target.value)}
             inputMode="numeric"
             autoComplete="one-time-code"
-            placeholder="Enter your key"
+            placeholder="Enter your 4-digit key"
           />
           <button className="btn btn-primary" type="submit" disabled={loading}>
-            {loading ? 'Entering...' : 'Enter Briefing'}
+            {loading ? 'Entering...' : 'Enter the Gala'}
           </button>
           {err && <div className="error">{err}</div>}
-          <div className="hint">Use the private key shared by your game host.</div>
+          <div className="hint">Your host will give you your private key before the game begins.</div>
         </form>
       </div>
     </div>

@@ -75,13 +75,13 @@ export default function GameBriefing({ session, onContinue, onLogout, modal = fa
         <div className="briefing-grid">
           <section className="card">
             <h3>The Story</h3>
-            {briefing.story.map((line) => (
-              <p key={line}>{line}</p>
+            {briefing.story.map((line, i) => (
+              <p key={i} style={{ color: '#b0b8c2' }}>{line}</p>
             ))}
           </section>
 
           <section className="card">
-            <h3>Main Rules</h3>
+            <h3>Game Rules</h3>
             <ul className="simple-list">
               {briefing.rules.map((rule) => (
                 <li key={rule.id}>
@@ -96,19 +96,19 @@ export default function GameBriefing({ session, onContinue, onLogout, modal = fa
             <ul className="simple-list">
               {briefing.timeline.map((item) => (
                 <li key={item.phase}>
-                  <strong>{item.phase}</strong> ({item.time}) - {item.details}
+                  <strong>{item.phase}</strong> <span style={{ color: '#8b95a0' }}>({item.time})</span> — {item.details}
                 </li>
               ))}
             </ul>
           </section>
 
-          <section className="card">
-            <h3>Read Aloud</h3>
-            {briefing.readAloud.map((line) => (
-              <p key={line}>{line}</p>
+          <section className="card" style={{ display: 'grid', gap: '14px' }}>
+            <h3>Opening Statement</h3>
+            {briefing.readAloud.map((line, i) => (
+              <p key={i} style={{ color: '#b0b8c2', fontStyle: 'italic' }}>{line}</p>
             ))}
-            <button className="btn btn-primary" onClick={onContinue}>
-              {modal ? 'Back to Investigation' : 'Start Investigation'}
+            <button className="btn btn-primary" onClick={onContinue} style={{ marginTop: '8px' }}>
+              {modal ? 'Back to Investigation' : 'Begin the Investigation'}
             </button>
           </section>
         </div>

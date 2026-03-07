@@ -168,7 +168,7 @@ export default function HostDashboard({ session, onLogout }) {
       <div className="topbar">
         <div>
           <div className="eyebrow">Host Console</div>
-          <h2 className="title-sm">Ravenswood Gala Control Room</h2>
+          <h2 className="title-sm">Ravenswood Gala — Control Room</h2>
           <p className="status-pill">{phaseLabel}</p>
         </div>
         <button className="btn btn-ghost" onClick={logout}>Log Out</button>
@@ -274,7 +274,7 @@ export default function HostDashboard({ session, onLogout }) {
         <div className="stat-grid">
           <div className="stat-card">
             <div className="label">Votes Submitted</div>
-            <div className="stat-value">{votes.length} / {playerPins.length || 22}</div>
+            <div className="stat-value">{votes.length} / {playerPins.length || 13}</div>
           </div>
           <div className="stat-card">
             <div className="label">Current Leader</div>

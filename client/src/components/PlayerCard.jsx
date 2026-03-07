@@ -238,13 +238,38 @@ export default function PlayerCard({ session, onLogout, onOpenBriefing, onRoundV
       <div className="layout-grid player-layout">
         <section className="card briefing">
           <h3>Your Card</h3>
-          <p><strong>Who You Are:</strong> {player.whoYouAre}</p>
-          <p><strong>Tonight:</strong> {player.tonight}</p>
-          <p><strong>8:47 Alibi:</strong> {player.alibi}</p>
-          <p><strong>Must Talk To:</strong> {player.mustTalkTo?.join(', ')}</p>
-          <p><strong>Secret:</strong> {player.secret}</p>
-          <p><strong>Suspicion Hook:</strong> {player.suspicionHook}</p>
-          <p><strong>Witness Memory:</strong> {player.witnessMemory}</p>
+          <div className="card-field">
+            <div className="card-field-label">Who You Are</div>
+            <p>{player.whoYouAre}</p>
+          </div>
+          <div className="card-field">
+            <div className="card-field-label">Tonight</div>
+            <p>{player.tonight}</p>
+          </div>
+          <div className="card-field">
+            <div className="card-field-label">8:47 Alibi</div>
+            <p>{player.alibi}</p>
+          </div>
+          <div className="card-field must-talk">
+            <div className="card-field-label">Must Talk To</div>
+            <div className="must-talk-tags">
+              {player.mustTalkTo?.map((name) => (
+                <span key={name} className="talk-tag">{name}</span>
+              ))}
+            </div>
+          </div>
+          <div className="card-field secret-field">
+            <div className="card-field-label">Your Secret</div>
+            <p>{player.secret}</p>
+          </div>
+          <div className="card-field">
+            <div className="card-field-label">Your Role in the Game</div>
+            <p>{player.roleInGame || player.suspicionHook}</p>
+          </div>
+          <div className="card-field">
+            <div className="card-field-label">Witness Memory</div>
+            <p>{player.witnessMemory}</p>
+          </div>
         </section>
 
         <div className="stack">
