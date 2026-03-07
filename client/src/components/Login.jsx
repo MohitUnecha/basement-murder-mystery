@@ -6,18 +6,44 @@ const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:4000').trim
 export default function Login({ onLogin }) {
   const [step, setStep] = useState(1) // 1 = pin, 2 = phone
   const [pin, setPin] = useState('')
+  const [playerName, setPlayerName] = useState('')
   const [phone, setPhone] = useState('')
   const [err, setErr] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const goToPhone = (e) => {
+  const submitPin = async (e) => {
     e.preventDefault()
     if (!pin.trim()) return
     setErr(null)
-    setStep(2)
+    setLoading(true)
+    try {
+      const res = await axios.post(`${API_BASE}/api/auth`, {
+        pin: Number(pin),
+      })
+      
+      // Host login completes immediately
+      if (res.data.role === 'host') {
+        onLogin(res.data)
+        return
+      }
+      
+      // Player needs to provide phone
+      if (res.data.needsPhone) {
+        setPlayerName(res.data.playerName)
+        setStep(2)
+      }
+    } catch (error) {
+      if (!error.response) {
+        setErr('Cannot reach backend. Set VITE_API_BASE to your deployed server URL.')
+      } else {
+        setErr(error.response?.data?.error || error.message)
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const submit = async (e) => {
+  const submitPhone = async (e) => {
     e.preventDefault()
     setErr(null)
     setLoading(true)
@@ -33,8 +59,9 @@ export default function Login({ onLogin }) {
       } else {
         const msg = error.response?.data?.error || error.message
         // If PIN was wrong, go back to step 1
-        if (error.response?.status === 401) {
+        if (error.response?.status === 404) {
           setStep(1)
+          setPlayerName('')
         }
         setErr(msg)
       }
@@ -50,14 +77,15 @@ export default function Login({ onLogin }) {
         <p className="eyebrow">Ravenswood Gala &mdash; Classified</p>
         <h1 className="title">THE SAPPHIRE OF SHADOWS</h1>
         <p className="subtitle">
-          A priceless gemstone has been stolen. Dr.&nbsp;Priya Mehta lies unconscious.
-          {step === 1
-            ? ' Enter your game key to begin.'
-            : ' Now enter your phone number for meeting alerts.'}
+          {step === 1 ? (
+            <>A priceless gemstone has been stolen. Dr.&nbsp;Priya Mehta lies unconscious. Enter your game key to begin.</>
+          ) : (
+            <>Hi <strong>{playerName}</strong>, enter your phone number for SMS and phone calls for the game please.</>
+          )}
         </p>
 
         {step === 1 ? (
-          <form onSubmit={goToPhone} className="card" style={{ display: 'grid', gap: '12px', padding: '20px' }}>
+          <form onSubmit={submitPin} className="card" style={{ display: 'grid', gap: '12px', padding: '20px' }}>
             <label className="label">Game Key</label>
             <input
               className="input"
@@ -68,14 +96,14 @@ export default function Login({ onLogin }) {
               autoFocus
               placeholder="Enter your 4-digit key"
             />
-            <button className="btn btn-primary" type="submit" disabled={!pin.trim()}>
-              Continue
+            <button className="btn btn-primary" type="submit" disabled={loading || !pin.trim()}>
+              {loading ? 'Verifying...' : 'Continue'}
             </button>
             {err && <div className="error">{err}</div>}
             <div className="hint">Your host will give you your private key.</div>
           </form>
         ) : (
-          <form onSubmit={submit} className="card" style={{ display: 'grid', gap: '12px', padding: '20px' }}>
+          <form onSubmit={submitPhone} className="card" style={{ display: 'grid', gap: '12px', padding: '20px' }}>
             <label className="label">Phone Number</label>
             <input
               className="input"
@@ -90,11 +118,11 @@ export default function Login({ onLogin }) {
             <button className="btn btn-primary" type="submit" disabled={loading}>
               {loading ? 'Entering...' : 'Enter the Gala'}
             </button>
-            <button className="btn btn-ghost" type="button" onClick={() => { setStep(1); setErr(null) }}>
+            <button className="btn btn-ghost" type="button" onClick={() => { setStep(1); setPlayerName(''); setErr(null) }}>
               Back
             </button>
             {err && <div className="error">{err}</div>}
-            <div className="hint">Phone is used for meeting call alerts.</div>
+            <div className="hint">Used for meeting call alerts during the game.</div>
           </form>
         )}
       </div>

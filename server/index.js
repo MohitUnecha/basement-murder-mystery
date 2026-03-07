@@ -267,10 +267,12 @@ app.post('/api/auth', (req, res) => {
   const player = playersByPin.get(pin);
   if (!player) return res.status(404).json({ error: 'invalid pin' });
 
-  // Require phone for players
-  if (!phone) return res.status(400).json({ error: 'phone number required' });
+  // If no phone provided, return player info for step 2
+  if (!phone) {
+    return res.json({ role: 'player', playerName: player.name, needsPhone: true });
+  }
 
-  // Store phone number
+  // Phone provided - complete authentication
   state.phoneNumbers.set(player.name, phone);
 
   const token = createToken();
