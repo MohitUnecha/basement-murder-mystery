@@ -52,19 +52,33 @@ After first successful run:
 
 The Vite build now uses a relative base path (`--base ./`) so asset links still work if the repo name changes.
 
-## Backend deployment
+## Vercel deployment (current)
 
-Deploy `server/` to Render, Railway, Fly.io, or similar Node host.
+This app is deployed on Vercel with:
+- Frontend: Static site from `client/dist`
+- Backend: Serverless function at `/api`
 
-Recommended env vars:
-- `PORT` (provided by host)
-- `CORS_ORIGINS` (comma-separated origins allowed to call API)
-  - Example: `https://mohitunecha.github.io,http://localhost:5173`
+The app automatically deploys when you push to `main` branch.
 
-For frontend production API URL, set GitHub repository variable:
-- `VITE_API_BASE` = your deployed backend URL
+### Twilio phone calls setup (optional)
 
-The GitHub Actions build injects this value automatically.
+To enable phone calls when meetings start:
+
+1. Sign up for Twilio at https://www.twilio.com/
+2. Get your credentials from the Twilio Console:
+   - Account SID
+   - Auth Token
+   - A Twilio phone number
+3. Add these environment variables in Vercel:
+   - Go to your Vercel project → Settings → Environment Variables
+   - Add:
+     - `TWILIO_ACCOUNT_SID` = your Account SID
+     - `TWILIO_AUTH_TOKEN` = your Auth Token
+     - `TWILIO_PHONE_NUMBER` = your Twilio phone number (format: `+15551234567`)
+
+4. Redeploy to apply the changes
+
+Without these variables, the app still works but won't make phone calls (in-app alerts still work).
 
 ## Backend behavior (optimized for game night)
 
