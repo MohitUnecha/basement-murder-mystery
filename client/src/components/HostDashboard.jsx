@@ -167,18 +167,6 @@ export default function HostDashboard({ session, onLogout }) {
     setBusy(false)
   }
 
-  const callAllPlayers = async () => {
-    await withErrorHandling(async () => {
-      setBusy(true)
-      setCallStatus(null)
-      const res = await axios.post(`${API_BASE}/api/meeting`, { meeting: gameState?.meeting || 1 }, authHeaders)
-      if (res.data.calls) {
-        setCallStatus(res.data.calls)
-      }
-    })
-    setBusy(false)
-  }
-
   const sendAnnouncement = async (event) => {
     event.preventDefault()
     await withErrorHandling(async () => {

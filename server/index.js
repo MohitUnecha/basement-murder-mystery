@@ -186,8 +186,14 @@ function computeResults() {
 
 function normalizePhone(raw) {
   if (typeof raw !== 'string') return null;
-  const digits = raw.replace(/[^0-9+]/g, '');
+  let digits = raw.replace(/[^0-9+]/g, '');
   if (digits.length < 7 || digits.length > 16) return null;
+  // Auto-add +1 for US numbers that don't have country code
+  if (!digits.startsWith('+')) {
+    if (digits.length === 10) digits = '+1' + digits;
+    else if (digits.length === 11 && digits.startsWith('1')) digits = '+' + digits;
+    else digits = '+' + digits;
+  }
   return digits;
 }
 
