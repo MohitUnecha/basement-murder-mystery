@@ -167,6 +167,18 @@ export default function HostDashboard({ session, onLogout }) {
     setBusy(false)
   }
 
+  const callAllPlayers = async () => {
+    await withErrorHandling(async () => {
+      setBusy(true)
+      setCallStatus(null)
+      const res = await axios.post(`${API_BASE}/api/meeting`, { meeting: gameState?.meeting || 1 }, authHeaders)
+      if (res.data.calls) {
+        setCallStatus(res.data.calls)
+      }
+    })
+    setBusy(false)
+  }
+
   const sendAnnouncement = async (event) => {
     event.preventDefault()
     await withErrorHandling(async () => {
@@ -266,13 +278,22 @@ export default function HostDashboard({ session, onLogout }) {
           {callStatus && (
             <div className="call-status">
               <h4>Call Status</h4>
-              <ul className="simple-list">
-                {callStatus.map((c, i) => (
-                  <li key={i} className={c.status === 'called' ? 'call-ok' : 'call-fail'}>
-                    <strong>{c.player}</strong>: {c.status === 'called' ? `Called ${c.phone}` : c.error || 'Not called'}
-                  </li>
-                ))}
-              </ul>
+              {callStatus.skipped ? (
+                <p className="hint">Twilio not configured: {callStatus.skipped}</p>
+              ) : (
+                <>
+                  <p className="hint">Called {callStatus.called || 0} / {callStatus.total || 0} players</p>
+                  {callStatus.errors && callStatus.errors.length > 0 && (
+                    <ul className="simple-list">
+                      {callStatus.errors.map((err, i) => (
+                        <li key={i} className="call-fail">
+                          <strong>{err.name}</strong>: {err.error}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
             </div>
           )}
         </section>

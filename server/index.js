@@ -3,6 +3,14 @@ const cors = require('cors');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
+// Require twilio at top level so Vercel's bundler includes it
+let twilio;
+try {
+  twilio = require('twilio');
+} catch (_e) {
+  twilio = null;
+}
+
 const app = express();
 
 const corsOrigins = process.env.CORS_ORIGINS
@@ -36,14 +44,11 @@ const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
 const TWILIO_FROM = process.env.TWILIO_PHONE_NUMBER || '';
 const TWILIO_STUDIO_FLOW = process.env.TWILIO_STUDIO_FLOW_SID || '';
 
-if (TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM) {
-  try {
-    const twilio = require('twilio');
-    twilioClient = twilio(TWILIO_SID, TWILIO_TOKEN);
-    console.log('Twilio enabled — calls will be placed.' + (TWILIO_STUDIO_FLOW ? ' (Studio Flow)' : ' (TwiML)'));
-  } catch (_err) {
-    console.log('Twilio SDK not installed. Run: npm install twilio');
-  }
+if (TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM && twilio) {
+  twilioClient = twilio(TWILIO_SID, TWILIO_TOKEN);
+  console.log('Twilio enabled — calls will be placed.' + (TWILIO_STUDIO_FLOW ? ' (Studio Flow)' : ' (TwiML)'));
+} else if (!twilio) {
+  console.log('Twilio SDK not available.');
 } else {
   console.log('Twilio env vars not set — meeting calls disabled (in-app alerts still work).');
 }
@@ -117,6 +122,12 @@ function requireSession(req, res, next) {
   if (!decoded) return res.status(401).json({ error: 'invalid or expired token' });
   req.session = decoded;
   req.sessionToken = token;
+
+  // Re-hydrate phone number from JWT on every request (survives cold starts)
+  if (decoded.role === 'player' && decoded.playerName && decoded.phone) {
+    state.phoneNumbers.set(decoded.playerName, decoded.phone);
+  }
+
   return next();
 }
 
@@ -306,6 +317,7 @@ app.post('/api/auth', (req, res) => {
     role: 'player',
     playerName: player.name,
     pin,
+    phone,
   });
 
   const result = sanitizePlayer(player);
@@ -393,6 +405,46 @@ app.post('/api/meeting', requireSession, requireHost, async (req, res) => {
   }
 
   return res.json({ ok: true, meeting: state.meeting, announcement, calls: callResult });
+});
+
+/* Host can call a specific player by name */
+app.post('/api/call-player', requireSession, requireHost, async (req, res) => {
+  const playerName = normalizeName(req.body?.playerName);
+  const phone = normalizePhone(req.body?.phone || '');
+
+  if (!phone) {
+    // Try to find from state
+    const storedPhone = playerName ? state.phoneNumbers.get(playerName) : null;
+    if (!storedPhone) return res.status(400).json({ error: 'phone number required' });
+    // Call stored number
+    try {
+      await callPlayer(storedPhone, 0);
+      return res.json({ ok: true, called: playerName, phone: storedPhone });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  try {
+    await callPlayer(phone, 0);
+    return res.json({ ok: true, called: playerName || 'unknown', phone });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/* Host can test Twilio connection */
+app.get('/api/twilio-status', requireSession, requireHost, (_req, res) => {
+  res.json({
+    enabled: !!twilioClient,
+    studioFlow: !!TWILIO_STUDIO_FLOW,
+    from: TWILIO_FROM ? TWILIO_FROM.replace(/\d(?=.{4})/g, '*') : null,
+    registeredPhones: state.phoneNumbers.size,
+    players: Array.from(state.phoneNumbers.entries()).map(([name, phone]) => ({
+      name,
+      phone: phone.replace(/\d(?=.{4})/g, '*'),
+    })),
+  });
 });
 
 app.post('/api/announce', requireSession, requireHost, (req, res) => {
