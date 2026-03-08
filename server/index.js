@@ -34,12 +34,13 @@ let twilioClient = null;
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
 const TWILIO_FROM = process.env.TWILIO_PHONE_NUMBER || '';
+const TWILIO_STUDIO_FLOW = process.env.TWILIO_STUDIO_FLOW_SID || '';
 
 if (TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM) {
   try {
     const twilio = require('twilio');
     twilioClient = twilio(TWILIO_SID, TWILIO_TOKEN);
-    console.log('Twilio enabled — meeting calls will be placed.');
+    console.log('Twilio enabled — calls will be placed.' + (TWILIO_STUDIO_FLOW ? ' (Studio Flow)' : ' (TwiML)'));
   } catch (_err) {
     console.log('Twilio SDK not installed. Run: npm install twilio');
   }
@@ -181,9 +182,20 @@ function normalizePhone(raw) {
 
 /* ═══════ Twilio call helper ═══════ */
 
-async function callAllPlayersForMeeting(meetingNumber) {
-  if (!twilioClient) return { called: 0, skipped: 'twilio not configured' };
+async function callPlayer(phone, meetingNumber) {
+  if (!twilioClient) return null;
 
+  // Use Studio Flow if configured
+  if (TWILIO_STUDIO_FLOW) {
+    return twilioClient.studio.v2
+      .flows(TWILIO_STUDIO_FLOW)
+      .executions.create({
+        to: phone,
+        from: TWILIO_FROM,
+      });
+  }
+
+  // Fallback to TwiML direct call
   const meetingLabels = {
     1: 'Meeting 1. Please review Pack A clues and join the open discussion.',
     2: 'Meeting 2. Please review Pack B clues and challenge everyone\'s timelines.',
@@ -192,18 +204,24 @@ async function callAllPlayersForMeeting(meetingNumber) {
 
   const twiml = `<Response><Say voice="alice">Attention investigators. The Sapphire of Shadows game is now conducting ${meetingLabels[meetingNumber] || 'a meeting'}. This is an automated call. Goodbye.</Say><Pause length="1"/><Hangup/></Response>`;
 
+  return twilioClient.calls.create({
+    twiml,
+    to: phone,
+    from: TWILIO_FROM,
+    timeout: 10,
+  });
+}
+
+async function callAllPlayersForMeeting(meetingNumber) {
+  if (!twilioClient) return { called: 0, skipped: 'twilio not configured' };
+
   const numbers = Array.from(state.phoneNumbers.entries());
   let called = 0;
   const errors = [];
 
   for (const [name, phone] of numbers) {
     try {
-      await twilioClient.calls.create({
-        twiml,
-        to: phone,
-        from: TWILIO_FROM,
-        timeout: 10,
-      });
+      await callPlayer(phone, meetingNumber);
       called++;
     } catch (err) {
       errors.push({ name, error: err.message });
