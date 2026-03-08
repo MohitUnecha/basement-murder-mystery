@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 
@@ -62,10 +63,22 @@ const state = {
   nextChatId: 1,
 };
 
-/* ═══════ Helpers ═══════ */
+/* ═══════ JWT ═══════ */
 
-function createToken() {
-  return crypto.randomBytes(24).toString('hex');
+// Deterministic secret so tokens survive Vercel cold starts
+const JWT_SECRET = process.env.JWT_SECRET ||
+  crypto.createHash('sha256').update('sapphire-of-shadows-' + hostPin + '-' + players.length).digest('hex');
+
+function createToken(payload) {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
+}
+
+function verifyToken(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (_err) {
+    return null;
+  }
 }
 
 function parsePin(value) {
@@ -100,9 +113,9 @@ function getTokenFromHeader(req) {
 function requireSession(req, res, next) {
   const token = getTokenFromHeader(req);
   if (!token) return res.status(401).json({ error: 'missing bearer token' });
-  const session = state.sessions.get(token);
-  if (!session) return res.status(401).json({ error: 'invalid or expired token' });
-  req.session = session;
+  const decoded = verifyToken(token);
+  if (!decoded) return res.status(401).json({ error: 'invalid or expired token' });
+  req.session = decoded;
   req.sessionToken = token;
   return next();
 }
@@ -257,8 +270,7 @@ app.post('/api/auth', (req, res) => {
   const phone = normalizePhone(req.body?.phone || '');
 
   if (pin === hostPin) {
-    const token = createToken();
-    state.sessions.set(token, { role: 'host', createdAt: Date.now() });
+    const token = createToken({ role: 'host' });
     return res.json({ role: 'host', token, roundVersion: state.roundVersion });
   }
 
@@ -273,13 +285,10 @@ app.post('/api/auth', (req, res) => {
   // Phone provided - complete authentication
   state.phoneNumbers.set(player.name, phone);
 
-  const token = createToken();
-  state.sessions.set(token, {
+  const token = createToken({
     role: 'player',
     playerName: player.name,
     pin,
-    phone,
-    createdAt: Date.now(),
   });
 
   const result = sanitizePlayer(player);
@@ -290,7 +299,7 @@ app.post('/api/auth', (req, res) => {
 });
 
 app.post('/api/logout', requireSession, (req, res) => {
-  state.sessions.delete(req.sessionToken);
+  // JWT tokens are stateless; logout is handled client-side
   res.json({ ok: true });
 });
 
