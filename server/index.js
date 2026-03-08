@@ -52,7 +52,6 @@ if (TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM) {
 const state = {
   revealedClues: new Set(),
   votesByVoter: new Map(),
-  sessions: new Map(),
   announcements: [],
   nextAnnouncementId: 1,
   meeting: 0,
